@@ -1,7 +1,6 @@
 resource "kubernetes_manifest" "platform_navigator" {
   depends_on = [
     kubernetes_manifest.cp4i_operator,
-    kubernetes_manifest.common_service,
     kubernetes_namespace.cp4i
   ]
 

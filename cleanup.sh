@@ -40,49 +40,11 @@ filter_ansi() {
 
 # --- FUNCIONES DE DIAGNÓSTICO Y LIMPIEZA ---
 
-check_catalogs_health() {
-    log_step "Verificando salud de Catálogos (CatalogSources)"
-    # Esperamos hasta 60s a que los catálogos estén READY
-    local retries=0
-    while [ $retries -lt 12 ]; do
-        local failed_catalogs=$(oc get catalogsource -n openshift-marketplace -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.status.connectionState.lastObservedState}{"\n"}{end}' | grep -v "READY")
-        
-        if [ -z "$failed_catalogs" ]; then
-            log "${GREEN}✅ Todos los catálogos están saludables.${NC}"
-            return 0
-        fi
-        
-        echo -n "."
-        sleep 5
-        ((retries++))
-    done
-    
-    log "${RED}❌ Error: Hay catálogos fallando. Terraform fallará si esto no se arregla.${NC}"
-    oc get catalogsource -n openshift-marketplace >> "$LOG_FILE"
-    # Mostramos logs del pod fallido para debug rápido
-    local bad_pod=$(oc get pods -n openshift-marketplace -o name | grep postgres)
-    if [ ! -z "$bad_pod" ]; then
-        log "Logs del catálogo Postgres:"
-        oc logs $bad_pod -n openshift-marketplace --tail=20 2>&1 | tee -a "$LOG_FILE"
-    fi
-    return 1
-}
-
 inspect_cluster_state() {
     local PHASE="$1"
     log_header "INSPECCIÓN DE ESTADO ($PHASE)"
-    
-    log_step "Detectando InstallPlans bloqueados (Manual/RequiresApproval)"
     oc get installplan -A -o custom-columns=NAME:.metadata.name,NAMESPACE:.metadata.namespace,APPROVAL:.spec.approval,PHASE:.status.phase | grep -E "Manual|RequiresApproval" >> "$LOG_FILE" 2>&1 || log "No hay planes bloqueados."
-    
-    log_step "Estado de PlatformNavigator en cp4i"
-    oc get platformnavigator -n cp4i >> "$LOG_FILE" 2>&1 || log "No encontrado."
-    
-    log_step "OperandRequests (Componentes atascados)"
-    oc get operandrequest -A >> "$LOG_FILE" 2>&1
-    
-    log_step "Estado de Suscripciones (Errores de resolución)"
-    oc get subscription -A -o custom-columns=NAME:.metadata.name,STATUS:.status.state,REASON:.status.reason >> "$LOG_FILE" 2>&1
+    oc get platformnavigator -n cp4i >> "$LOG_FILE" 2>&1 || log "Navigator no encontrado."
 }
 
 run_deep_cleanup() {
@@ -93,20 +55,45 @@ run_deep_cleanup() {
     
     log_step "Parcheando Finalizers (Forzado)"
     oc patch namespace cp4i --type=merge -p '{"metadata":{"finalizers":null}}' --request-timeout=10s >> "$LOG_FILE" 2>&1 || true
+    # Nota: No borramos ibm-common-services para evitar conflictos si ya existe uno válido, 
+    # pero si necesitas reinstalar desde cero, descomenta la siguiente línea:
     oc patch namespace ibm-common-services --type=merge -p '{"metadata":{"finalizers":null}}' --request-timeout=10s >> "$LOG_FILE" 2>&1 || true
 
     log_step "Eliminando OperandRequests (Sin esperar)"
     oc delete operandrequest --all -A --wait=false --grace-period=0 2>/dev/null
     
     log_step "Limpiando Suscripciones y CSVs"
+    # Esto limpia suscripciones viejas para que no haya conflicto de versiones (ODLM)
     oc delete subscription --all -n openshift-operators | grep ibm >> "$LOG_FILE" 2>&1 || true
-    oc get csv -n openshift-operators | grep -E "ibm|cloud-native-postgresql" | awk '{print $1}' | xargs -L 1 oc delete csv -n openshift-operators --wait=false 2>/dev/null
+    oc get csv -n openshift-operators | grep -E "ibm|odlm|common-service" | awk '{print $1}' | xargs -L 1 oc delete csv -n openshift-operators --wait=false 2>/dev/null
 
-    log_step "Borrando Namespaces"
+    log_step "Borrando Namespaces de Aplicación"
     oc delete namespace cp4i ibm-common-services --grace-period=0 --force --wait=false 2>/dev/null
     
-    log "Esperando estabilización del API (15s)..."
-    sleep 15
+    log "Esperando estabilización del API (10s)..."
+    sleep 10
+}
+
+# --- FUNCIÓN INTELIGENTE: AUTO IMPORTAR ---
+# Esto evita el error "resource already exists" si los catálogos ya están en el cluster
+auto_import_catalogs() {
+    log_step "Verificando catálogos existentes para importar al estado..."
+
+    # 1. IBM Operator Catalog
+    if oc get catalogsource ibm-operator-catalog -n openshift-marketplace >/dev/null 2>&1; then
+        log "ℹ️  'ibm-operator-catalog' ya existe. Importando a Terraform..."
+        terraform import -no-color kubernetes_manifest.ibm_operator_catalog "apiVersion=operators.coreos.com/v1alpha1,kind=CatalogSource,namespace=openshift-marketplace,name=ibm-operator-catalog" >> "$LOG_FILE" 2>&1 || true
+    else
+        log "El catálogo 'ibm-operator-catalog' no existe, Terraform lo creará."
+    fi
+
+    # 2. Opencloud Operators Catalog
+    if oc get catalogsource opencloud-operators -n openshift-marketplace >/dev/null 2>&1; then
+        log "ℹ️  'opencloud-operators' ya existe. Importando a Terraform..."
+        terraform import -no-color kubernetes_manifest.opencloud_operators_catalog "apiVersion=operators.coreos.com/v1alpha1,kind=CatalogSource,namespace=openshift-marketplace,name=opencloud-operators" >> "$LOG_FILE" 2>&1 || true
+    else
+        log "El catálogo 'opencloud-operators' no existe, Terraform lo creará."
+    fi
 }
 
 # --- MENÚ PRINCIPAL ---
@@ -117,7 +104,7 @@ echo -e "${BLUE}====================================================${NC}"
 echo "Directorio de logs: $LOG_DIR"
 echo "Log actual: $LOG_FILE"
 echo "----------------------------------------------------"
-echo "1) INSTALACIÓN COMPLETA (Limpieza + Apply)"
+echo "1) INSTALACIÓN INTELIGENTE (Importa si existe + Apply)"
 echo "2) DESINSTALACIÓN / DESTRABAR (Destroy + Finalizers)"
 echo "3) SOLO LIMPIEZA MANUAL (Rescate rápido)"
 echo "----------------------------------------------------"
@@ -125,24 +112,21 @@ read -p "Selecciona una opción [1-3]: " OPTION
 
 case $OPTION in
   1)
+    # Ejecutamos limpieza para asegurar que no haya basura de intentos fallidos (ODLM/Postgres)
+    # Pero NO borramos los catálogos (marketplace)
     run_deep_cleanup
-    log_header "TERRAFORM APPLY"
     
-    # 1. Aplicar solo catálogos primero para validar imagen
-    log_step "Aplicando Catálogos..."
-    terraform apply -target=kubernetes_manifest.ibm_operator_catalog -target=kubernetes_manifest.cloud_native_postgres_catalog -auto-approve -no-color >> "$LOG_FILE" 2>&1
-    
-    # 2. Validar salud antes de seguir
-    if ! check_catalogs_health; then
-        echo -e "${RED}⚠️  ERROR CRÍTICO: El catálogo de Postgres falló. Revisa el log y corrige catalogs.tf antes de seguir.${NC}"
-        exit 1
-    fi
-
+    log_header "TERRAFORM INIT"
     terraform init -no-color >> "$LOG_FILE" 2>&1
     
-    log_step "Generando Plan Completo"
+    # IMPORTANTE: Importamos catálogos existentes para evitar error de duplicados
+    auto_import_catalogs
+    
+    log_step "Generando Plan"
+    # Usamos -no-color para log limpio y tee para ver en pantalla y archivo
     if terraform plan -no-color -out=tfplan 2>&1 | filter_ansi | tee -a "$LOG_FILE"; then
-        read -p "❓ ¿Deseas aplicar los cambios con Aprobación Automática? (yes/no): " CONFIRM
+        echo ""
+        read -p "❓ ¿Deseas aplicar los cambios? (yes/no): " CONFIRM
         if [[ "$CONFIRM" == "yes" ]]; then
             log_step "Aplicando Configuración"
             terraform apply -no-color "tfplan" 2>&1 | filter_ansi | tee -a "$LOG_FILE"
@@ -151,7 +135,7 @@ case $OPTION in
             inspect_cluster_state "POST-INSTALL"
         fi
     else
-        log "${RED}❌ El plan de Terraform falló. Revisa el log para corregir los errores antes de aplicar.${NC}"
+        log "${RED}❌ El plan de Terraform falló. Revisa el log para detalles.${NC}"
         exit 1
     fi
     ;;
