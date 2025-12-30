@@ -118,3 +118,49 @@ resource "kubernetes_manifest" "datapower_operator" {
     }
   }
 }
+
+# Namespace para Cert Manager (Corregido)
+resource "kubernetes_namespace" "cert_manager_ns" {
+  metadata {
+    name = "cert-manager-operator" # ANTES: openshift-cert-manager-operator
+    labels = {
+      "openshift.io/cluster-monitoring" = "true"
+    }
+  }
+}
+
+# OperatorGroup para Cert Manager
+resource "kubernetes_manifest" "cert_manager_og" {
+  manifest = {
+    apiVersion = "operators.coreos.com/v1"
+    kind       = "OperatorGroup"
+    metadata = {
+      name      = "cert-manager-operator-group"
+      namespace = "cert-manager-operator" # Actualizado
+    }
+    spec = {
+      targetNamespaces = ["cert-manager-operator"] # Actualizado
+    }
+  }
+  depends_on = [kubernetes_namespace.cert_manager_ns]
+}
+
+# Suscripción Cert Manager (Red Hat Operators)
+resource "kubernetes_manifest" "cert_manager_sub" {
+  manifest = {
+    apiVersion = "operators.coreos.com/v1alpha1"
+    kind       = "Subscription"
+    metadata = {
+      name      = "openshift-cert-manager-operator" # El nombre del paquete sigue siendo este
+      namespace = "cert-manager-operator"           # El namespace donde vive es el nuevo
+    }
+    spec = {
+      channel             = "stable-v1.14" 
+      installPlanApproval = "Automatic"
+      name                = "openshift-cert-manager-operator"
+      source              = "redhat-operators"
+      sourceNamespace     = "openshift-marketplace"
+    }
+  }
+  depends_on = [kubernetes_namespace.cert_manager_ns]
+}
