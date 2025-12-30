@@ -1,0 +1,66 @@
+{
+    "apiVersion": "v1",
+    "kind": "Namespace",
+    "metadata": {
+        "annotations": {
+            "openshift.io/sa.scc.mcs": "s0:c29,c19",
+            "openshift.io/sa.scc.supplemental-groups": "1000850000/10000",
+            "openshift.io/sa.scc.uid-range": "1000850000/10000"
+        },
+        "creationTimestamp": "2025-12-29T18:04:42Z",
+        "deletionTimestamp": "2025-12-29T18:56:44Z",
+        "labels": {
+            "kubernetes.io/metadata.name": "cp4i",
+            "pod-security.kubernetes.io/audit": "baseline",
+            "pod-security.kubernetes.io/audit-version": "v1.24",
+            "pod-security.kubernetes.io/warn": "baseline",
+            "pod-security.kubernetes.io/warn-version": "v1.24"
+        },
+        "name": "cp4i",
+        "resourceVersion": "16612276",
+        "uid": "6f4be9fd-6d7a-4090-9685-730232c61fe2"
+    },
+    "spec": {
+        "finalizers": []
+    },
+    "status": {
+        "conditions": [
+            {
+                "lastTransitionTime": "2025-12-29T18:56:53Z",
+                "message": "All resources successfully discovered",
+                "reason": "ResourcesDiscovered",
+                "status": "False",
+                "type": "NamespaceDeletionDiscoveryFailure"
+            },
+            {
+                "lastTransitionTime": "2025-12-29T18:56:53Z",
+                "message": "All legacy kube types successfully parsed",
+                "reason": "ParsedGroupVersions",
+                "status": "False",
+                "type": "NamespaceDeletionGroupVersionParsingFailure"
+            },
+            {
+                "lastTransitionTime": "2025-12-29T18:56:53Z",
+                "message": "All content successfully deleted, may be waiting on finalization",
+                "reason": "ContentDeleted",
+                "status": "False",
+                "type": "NamespaceDeletionContentFailure"
+            },
+            {
+                "lastTransitionTime": "2025-12-29T18:56:53Z",
+                "message": "Some resources are remaining: operandrequests.operator.ibm.com has 1 resource instances",
+                "reason": "SomeResourcesRemain",
+                "status": "True",
+                "type": "NamespaceContentRemaining"
+            },
+            {
+                "lastTransitionTime": "2025-12-29T18:56:53Z",
+                "message": "Some content in the namespace has finalizers remaining: finalizer.request.ibm.com in 1 resource instances",
+                "reason": "SomeFinalizersRemain",
+                "status": "True",
+                "type": "NamespaceFinalizersRemaining"
+            }
+        ],
+        "phase": "Terminating"
+    }
+}
