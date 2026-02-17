@@ -1,0 +1,48 @@
+```
+kind: DataPowerService
+apiVersion: datapower.ibm.com/v1beta3
+metadata:
+  labels:
+    backup.datapower.ibm.com/component: datapowerservice
+  name: cdt-dp-service
+  namespace: cp4i-idg
+spec:
+  domains:
+    - name: default
+      dpApp:
+        config:
+          - dp-web-mgmt
+  license:
+    accept: true
+    license: L-LQQV-WT4TTD
+    use: nonproduction
+  replicas: 1
+  resources:
+    limits:
+      memory: 4Gi
+    requests:
+      cpu: 1
+      memory: 4Gi
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: 7879
+      scheme: HTTP
+    initialDelaySeconds: 60
+    timeoutSeconds: 5
+    periodSeconds: 10
+    failureThreshold: 12
+  readinessProbe:
+    httpGet:
+      path: /healthz
+      port: 7879
+      scheme: HTTP
+    initialDelaySeconds: 30
+    timeoutSeconds: 5
+    periodSeconds: 5
+    failureThreshold: 24
+  users:
+    - accessLevel: privileged
+      name: admin
+      passwordSecret: dp-admin-pass
+  version: 10.6-cd```

@@ -1,0 +1,223 @@
+apiVersion: apiconnect.ibm.com/v1beta1
+kind: APIConnectCluster
+metadata:
+  annotations:
+    apiconnect-operator/cp4i: "true"
+  creationTimestamp: "2026-02-12T08:31:22Z"
+  generation: 1
+  labels:
+    backup.apiconnect.ibm.com/component: apiconnectcluster
+  name: medium-cdt
+  namespace: cp4i
+  resourceVersion: "401285"
+  uid: 09cd6022-daed-4e62-a9ba-85b7a6286c3d
+spec:
+  analytics:
+    mtlsValidateClient: true
+    storage:
+      type: shared
+  imagePullSecrets:
+  - ibm-entitlement-key
+  imageRegistry: cp.icr.io/cp/apic
+  license:
+    accept: true
+    license: L-PDZK-TWDH97
+    metric: VIRTUAL_PROCESSOR_CORE
+    use: nonproduction
+  portal:
+    adminClientSubjectDN: ""
+    mtlsValidateClient: true
+    originalUID: ""
+    portalAdminEndpoint: {}
+    portalUIEndpoint: {}
+  profile: n1xc16.m72
+  storageClassName: ocs-storagecluster-ceph-rbd
+  version: 12.1.0.0
+status:
+  conditions:
+  - lastTransitionTime: "2026-02-12T08:31:22Z"
+    message: ""
+    reason: na
+    status: "False"
+    type: Warning
+  - lastTransitionTime: "2026-02-12T08:31:22Z"
+    message: ""
+    reason: na
+    status: "False"
+    type: Ready
+  - lastTransitionTime: "2026-02-12T09:08:42Z"
+    message: ""
+    reason: na
+    status: "False"
+    type: Pending
+  - lastTransitionTime: "2026-02-12T09:08:42Z"
+    message: 'ERROR from MANAGEMENT: SystemCheckCompletedWithErrors (message: System
+      check completed with the following error: Node.js v24.4.1, see status.SystemCheck
+      for more details.). APIC installation in progress'
+    reason: MANAGEMENT:SystemCheckCompletedWithErrors
+    status: "True"
+    type: Error
+  - lastTransitionTime: "2026-02-12T08:31:22Z"
+    message: ""
+    reason: na
+    status: "False"
+    type: Blocked
+  endpoints:
+  - name: ui
+    secretName: medium-cdt-mgmt-api-manager
+    type: UI
+    uri: https://medium-cdt-mgmt-api-manager-cp4i.apps.698d333990f9e0c297a43c2e.am1.techzone.ibm.com/manager
+  - name: admin
+    secretName: medium-cdt-mgmt-admin
+    type: UI
+    uri: https://medium-cdt-mgmt-admin-cp4i.apps.698d333990f9e0c297a43c2e.am1.techzone.ibm.com/admin
+  - name: consumerCatalog
+    secretName: medium-cdt-mgmt-consumer-catalog
+    type: UI
+    uri: https://medium-cdt-mgmt-consumer-catalog-cp4i.apps.698d333990f9e0c297a43c2e.am1.techzone.ibm.com/
+  - name: platformApi
+    secretName: medium-cdt-mgmt-platform-api
+    type: API
+    uri: https://medium-cdt-mgmt-platform-api-cp4i.apps.698d333990f9e0c297a43c2e.am1.techzone.ibm.com/
+  - name: jwksUrl
+    secretName: medium-cdt-mgmt-platform-api
+    type: API
+    uri: https://medium-cdt-mgmt-platform-api-cp4i.apps.698d333990f9e0c297a43c2e.am1.techzone.ibm.com/api/cloud/oauth2/certs
+  - name: consumerApi
+    secretName: medium-cdt-mgmt-consumer-api
+    type: API
+    uri: https://medium-cdt-mgmt-consumer-api-cp4i.apps.698d333990f9e0c297a43c2e.am1.techzone.ibm.com/
+  message: Error from MANAGEMENT subsystem - see status condition for details
+  phase: Error
+  state: Unknown
+  versions:
+    available:
+      channels: []
+      versions:
+      - licenses:
+        - displayName: IBM API Connect Enterprise V12.1.0.0
+          link: https://ibm.biz/BdbJqM
+          matchesCurrentType: true
+          name: L-PDZK-TWDH97
+        - displayName: IBM webMethods API Management 12.1
+          link: https://ibm.biz/Bdb9vS
+          name: L-CXFF-XRSP3J
+        - displayName: IBM Cloud Pak for Integration - API Calls 16.1.2
+          link: https://ibm.biz/BdnM2T
+          name: L-JVUW-LSTB9R
+        - displayName: IBM webMethods Hybrid Integration Subscription 11.2
+          link: https://ibm.biz/BdnaFK
+          name: L-SBZZ-CNR329
+        name: 12.1.0.0-1110
+      - licenses:
+        - displayName: IBM API Connect Enterprise V10.0.11.0
+          link: https://ibm.biz/BdbdMg
+          matchesCurrentType: true
+          name: L-KYAL-S3RCBM
+        - displayName: IBM Cloud Pak for Integration - API Calls 16.1.2
+          link: https://ibm.biz/BdnM2T
+          name: L-JVUW-LSTB9R
+        - displayName: IBM webMethods Hybrid Integration Subscription 11.2
+          link: https://ibm.biz/BdnaFK
+          name: L-SBZZ-CNR329
+        name: 10.0.11.0-11145
+      - licenses:
+        - displayName: IBM API Connect Enterprise V10.0.10.0
+          link: https://ibm.biz/BdnzrP
+          matchesCurrentType: true
+          name: L-RAWZ-DSFFFV
+        - displayName: IBM Cloud Pak for Integration - API Calls 16.1.2
+          link: https://ibm.biz/BdnM2T
+          name: L-JVUW-LSTB9R
+        - displayName: IBM webMethods Hybrid Integration Subscription 11.2
+          link: https://ibm.biz/BdnaFK
+          name: L-SBZZ-CNR329
+        name: 10.0.10.0-10278
+      - licenses:
+        - displayName: IBM API Connect Enterprise V10.0.9.0
+          link: https://ibm.biz/BdaCbb
+          matchesCurrentType: true
+          name: L-WPTV-3V8RK2
+        - displayName: IBM Cloud Pak for Integration - API Calls 16.1.0
+          link: https://ibm.biz/BdmPjg
+          name: L-FTGN-WUM5C5
+        name: 10.0.9.0-8759
+      - licenses:
+        - displayName: IBM API Connect Enterprise V10.0.8.1+
+          link: https://ibm.biz/Bdan6M
+          matchesCurrentType: true
+          name: L-HTFS-UAXYM3
+        - displayName: IBM Cloud Pak for Integration - API Calls 16.1.0
+          link: https://ibm.biz/BdmPjg
+          name: L-FTGN-WUM5C5
+        - displayName: IBM webMethods Hybrid Integration Subscription 11.2
+          link: https://ibm.biz/BdnaFK
+          name: L-SBZZ-CNR329
+        name: 10.0.8.4-3237
+      - licenses:
+        - displayName: IBM API Connect Enterprise V10.0.8.1+
+          link: https://ibm.biz/Bdan6M
+          matchesCurrentType: true
+          name: L-HTFS-UAXYM3
+        - displayName: IBM Cloud Pak for Integration - API Calls 16.1.0
+          link: https://ibm.biz/BdmPjg
+          name: L-FTGN-WUM5C5
+        - displayName: IBM webMethods Hybrid Integration Subscription 11.2
+          link: https://ibm.biz/BdnaFK
+          name: L-SBZZ-CNR329
+        name: 10.0.8.3-2844
+      - licenses:
+        - displayName: IBM API Connect Enterprise V10.0.8.1+
+          link: https://ibm.biz/Bdan6M
+          matchesCurrentType: true
+          name: L-HTFS-UAXYM3
+        - displayName: IBM Cloud Pak for Integration - API Calls 16.1.0
+          link: https://ibm.biz/BdmPjg
+          name: L-FTGN-WUM5C5
+        - displayName: IBM webMethods Hybrid Integration Subscription 11.2
+          link: https://ibm.biz/BdnaFK
+          name: L-SBZZ-CNR329
+        name: 10.0.8.2-ifix2-104
+      - licenses:
+        - displayName: IBM API Connect Enterprise V10.0.8.1+
+          link: https://ibm.biz/Bdan6M
+          matchesCurrentType: true
+          name: L-HTFS-UAXYM3
+        - displayName: IBM Cloud Pak for Integration - API Calls 16.1.0
+          link: https://ibm.biz/BdmPjg
+          name: L-FTGN-WUM5C5
+        name: 10.0.8.2-ifix1-57
+      - licenses:
+        - displayName: IBM API Connect Enterprise V10.0.8.1+
+          link: https://ibm.biz/Bdan6M
+          matchesCurrentType: true
+          name: L-HTFS-UAXYM3
+        - displayName: IBM Cloud Pak for Integration - API Calls 16.1.0
+          link: https://ibm.biz/BdmPjg
+          name: L-FTGN-WUM5C5
+        name: 10.0.8.2-1865
+      - licenses:
+        - displayName: IBM API Connect Enterprise V10.0.8.1+
+          link: https://ibm.biz/Bdan6M
+          matchesCurrentType: true
+          name: L-HTFS-UAXYM3
+        - displayName: IBM Cloud Pak for Integration - API Calls 16.1.0
+          link: https://ibm.biz/BdmPjg
+          name: L-FTGN-WUM5C5
+        name: 10.0.8.1-1110
+      - licenses:
+        - displayName: IBM API Connect Enterprise V10.0.8.0
+          link: https://ibm.biz/BdmPj8
+          matchesCurrentType: true
+          name: L-DZZQ-MGVN8V
+        - displayName: IBM Cloud Pak for Integration - API Calls 16.1.0
+          link: https://ibm.biz/BdmPjg
+          name: L-FTGN-WUM5C5
+        - displayName: IBM API Connect Enterprise Add-on for IBM Products V10.0.8.0
+          link: https://ibm.biz/BdmPZB
+          name: L-EFSE-DEGF6Z
+        - displayName: IBM API Connect Professional V10.0.8.0
+          link: https://ibm.biz/BdmPZD
+          name: L-QXKE-G3NZ57
+        name: 10.0.8.0-258
+    reconciled: ""

@@ -1,0 +1,13 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: dp-webui
+  namespace: cp4i-idg
+spec:
+  to:
+    kind: Service
+    name: dp-mgmt-svc
+  port:
+    targetPort: web-mgmt
+  tls:
+    termination: passthrough

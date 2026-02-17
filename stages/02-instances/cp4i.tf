@@ -1,8 +1,5 @@
 resource "kubernetes_manifest" "platform_navigator" {
-  depends_on = [
-    kubernetes_manifest.cp4i_operator,
-    kubernetes_namespace.cp4i
-  ]
+  # dependencies handled in stage 1
 
   manifest = {
     apiVersion = "integration.ibm.com/v1beta1"
@@ -33,7 +30,7 @@ resource "kubernetes_manifest" "apic_cluster" {
     apiVersion = "apiconnect.ibm.com/v1beta1"
     kind       = "APIConnectCluster"
     metadata = {
-      name      = "large-cdt"
+      name      = "medium-cdt" # Cambiado a medium según tu YAML
       namespace = "cp4i"
       annotations = {
         "apiconnect-operator/cp4i" = "true"
@@ -43,15 +40,15 @@ resource "kubernetes_manifest" "apic_cluster" {
       }
     }
     spec = {
-      version = "12.1.0.0"
-      profile = "n3xc16.m64" # Perfil de Alta Disponibilidad (Requiere muchos recursos)
+      version = "12.1.0.0"       # Volvemos a la versión correcta
+      profile = "n1xc16.m72"     # Perfil Medium (1 replica) según tu YAML
       license = {
         accept  = true
-        license = "L-PDZK-TWDH97"
+        license = "L-PDZK-TWDH97" # Tu licencia correcta para v12
         metric  = "VIRTUAL_PROCESSOR_CORE"
-        use     = "production"
+        use     = "nonproduction"
       }
-      storageClassName = "ocs-storagecluster-ceph-rbd" # Asegurate que esta SC exista
+      storageClassName = "ocs-storagecluster-ceph-rbd"
       portal = {
         mtlsValidateClient = true
       }
@@ -142,4 +139,93 @@ resource "kubernetes_manifest" "qm1_cdt" {
     }
   }
   depends_on = [kubernetes_config_map.mqwebuserconfigmap]
+}
+# ----------------------------------------------------------------
+# Cert Manager Instance (Moved from Stage 1)
+# ----------------------------------------------------------------
+resource "kubernetes_manifest" "cert_manager_cluster" {
+  manifest = {
+    apiVersion = "operator.openshift.io/v1alpha1"
+    kind       = "CertManager"
+    metadata = {
+      name = "cluster"
+    }
+    spec = {
+      managementState = "Managed"
+    }
+  }
+}
+
+# ----------------------------------------------------------------
+# App Connect Dashboard (from yamls/int-dashboard.yaml)
+# ----------------------------------------------------------------
+resource "kubernetes_manifest" "app_connect_dashboard" {
+  manifest = {
+    apiVersion = "appconnect.ibm.com/v1beta1"
+    kind       = "Dashboard"
+    metadata = {
+      name      = "dshb-cdt"
+      namespace = "cp4i"
+      labels = {
+        "backup.appconnect.ibm.com/component" = "dashboard"
+      }
+    }
+    spec = {
+      version     = "13.0.6"
+      replicas    = 3
+      displayMode = "IntegrationRuntimes"
+      license = {
+        accept  = true
+        license = "L-CKFT-S6CHZW"
+        use     = "CloudPakForIntegrationNonProduction"
+      }
+      api = {
+        enabled = true
+      }
+      authentication = {
+        integrationKeycloak = {
+          enabled = true
+        }
+      }
+      authorization = {
+        integrationKeycloak = {
+          enabled = true
+        }
+      }
+      storage = {
+        size  = "5Gi"
+        type  = "persistent-claim"
+        class = "ocs-storagecluster-cephfs"
+      }
+      pod = {
+        containers = {
+          content-server = {
+            resources = {
+              limits = {
+                memory = "512Mi"
+              }
+              requests = {
+                cpu    = "50m"
+                memory = "50Mi"
+              }
+            }
+          }
+          control-ui = {
+            resources = {
+              limits = {
+                memory = "512Mi"
+              }
+              requests = {
+                cpu    = "50m"
+                memory = "125Mi"
+              }
+            }
+          }
+        }
+      }
+      auditLog = {
+        disabled = true
+      }
+    }
+  }
 }

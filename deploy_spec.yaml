@@ -1,0 +1,355 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    apiconnect-operator/hash: 8febc42503fe58657975992d4e9dc1df4dd38d243e543a94a13751bde731203c
+    cloudpakId: c8b82d189e7545f0892db9ef2731b90d
+    cloudpakName: IBM Cloud Pak for Integration
+    deployment.kubernetes.io/revision: "2"
+    productChargedContainers: all
+    productCloudpakRatio: "2:1"
+    productID: f831eb5a8f4a4e7b9b3f2ebc37ed302e
+    productMetric: FREE
+    productName: IBM API Connect Enterprise Non Production
+    productVersion: 12.1.0.0-1110
+  creationTimestamp: "2026-02-12T08:35:23Z"
+  generation: 2
+  labels:
+    app.kubernetes.io/component: management
+    app.kubernetes.io/instance: medium-cdt-mgmt
+    app.kubernetes.io/managed-by: ibm-apiconnect
+    app.kubernetes.io/name: ui
+    app.kubernetes.io/part-of: medium-cdt
+  name: medium-cdt-mgmt-ui
+  namespace: cp4i
+  ownerReferences:
+  - apiVersion: management.apiconnect.ibm.com/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: ManagementCluster
+    name: medium-cdt-mgmt
+    uid: c86b3d1f-fb88-4dfd-8b2e-a05023159b56
+  resourceVersion: "371246"
+  uid: bafee459-df22-4608-8a84-7a2c1f714d05
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: management
+      app.kubernetes.io/instance: medium-cdt-mgmt
+      app.kubernetes.io/managed-by: ibm-apiconnect
+      app.kubernetes.io/name: ui
+      app.kubernetes.io/part-of: medium-cdt
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        cloudpakId: c8b82d189e7545f0892db9ef2731b90d
+        cloudpakName: IBM Cloud Pak for Integration
+        productChargedContainers: all
+        productCloudpakRatio: "2:1"
+        productID: f831eb5a8f4a4e7b9b3f2ebc37ed302e
+        productMetric: FREE
+        productName: IBM API Connect Enterprise Non Production
+        productVersion: 12.1.0.0-1110
+      creationTimestamp: null
+      labels:
+        app.kubernetes.io/component: management
+        app.kubernetes.io/instance: medium-cdt-mgmt
+        app.kubernetes.io/managed-by: ibm-apiconnect
+        app.kubernetes.io/name: ui
+        app.kubernetes.io/part-of: medium-cdt
+      name: medium-cdt-mgmt-ui
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+                - s390x
+                - ppc64le
+      containers:
+      - env:
+        - name: AI_ENABLED
+          value: "false"
+        - name: AI_GATEWAY_ENABLED
+          value: "true"
+        - name: APIC_CLOUD_TYPE
+        - name: APIC_CONSUMER_CATALOG_ENDPOINT
+          value: https://medium-cdt-mgmt-consumer-catalog-cp4i.apps.698d333990f9e0c297a43c2e.am1.techzone.ibm.com/
+        - name: API_ASSISTANT_ENABLED
+          value: "false"
+        - name: API_CAPABILITY
+          value: "true"
+        - name: ATM_INSTALLED
+          value: "false"
+        - name: CIP_SERVICE_ADDRESS
+          value: 172.30.12.40:3000
+        - name: ENABLE_UIA
+          value: "true"
+        - name: FIPS_ENABLED
+          value: "false"
+        - name: LICENSE_METRIC
+          value: VIRTUAL_PROCESSOR_CORE
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIP
+        - name: POD_IPS
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIPs
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: POD_SA
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.serviceAccountName
+        - name: POD_UID
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.uid
+        - name: VELOX_ISTIO
+          value: "false"
+        - name: VELOX_MUTUAL_TLS
+          value: "true"
+        image: cp.icr.io/cp/apic/ibm-apiconnect-management-ui@sha256:e301e4230b625f5226d4f390224542f203a3b784a77c4dea952f62097400c406
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 5
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          tcpSocket:
+            port: 8443
+          timeoutSeconds: 1
+        name: ui
+        ports:
+        - containerPort: 8443
+          name: api
+          protocol: TCP
+        - containerPort: 8404
+          name: api-404
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          tcpSocket:
+            port: 8443
+          timeoutSeconds: 1
+        resources:
+          limits:
+            cpu: 450m
+            memory: 256Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: false
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/nginx/certs
+          name: medium-cdt-mgmt-server
+          readOnly: true
+        - mountPath: /etc/velox/credentials/ui
+          name: medium-cdt-mgmt-ui-cred
+          readOnly: true
+        - mountPath: /nginx.conf.tpl
+          name: nginx-fixed
+          subPath: nginx.conf.tpl
+      - env:
+        - name: AI_ENABLED
+          value: "false"
+        - name: AI_GATEWAY_ENABLED
+          value: "true"
+        - name: APIC_API_MANAGER_ENDPOINT
+          value: https://medium-cdt-mgmt-api-manager-cp4i.apps.698d333990f9e0c297a43c2e.am1.techzone.ibm.com/manager
+        - name: APIC_CLOUD_MANAGER_ENDPOINT
+          value: https://medium-cdt-mgmt-admin-cp4i.apps.698d333990f9e0c297a43c2e.am1.techzone.ibm.com/admin
+        - name: APIC_CLOUD_TYPE
+        - name: APIC_PLATFORM_API_ENDPOINT
+          value: https://medium-cdt-mgmt-platform-api-cp4i.apps.698d333990f9e0c297a43c2e.am1.techzone.ibm.com/
+        - name: APIM_HOST
+          value: medium-cdt-mgmt-apim
+        - name: APIM_PORT
+          value: "3003"
+        - name: API_ASSISTANT_ENABLED
+          value: "false"
+        - name: FIPS_ENABLED
+          value: "false"
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIP
+        - name: POD_IPS
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIPs
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: POD_SA
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.serviceAccountName
+        - name: POD_UID
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.uid
+        - name: VELOX_CERTS
+          value: /etc/velox/certs
+        - name: VELOX_UI_CREDENTIALS
+          value: /etc/velox/credentials/ui
+        image: cp.icr.io/cp/apic/ibm-apiconnect-management-ui-authentication@sha256:19fbb9e8c1373f7801a8419a9ee9714271bd0f85627c28b5bc8e139e9491bfc1
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 5
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          tcpSocket:
+            port: 3000
+          timeoutSeconds: 1
+        name: ui-authentication
+        readinessProbe:
+          failureThreshold: 3
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          tcpSocket:
+            port: 3000
+          timeoutSeconds: 1
+        resources:
+          limits:
+            cpu: 100m
+            memory: 64Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: false
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/velox/certs/ca
+          name: medium-cdt-mgmt-ca
+          readOnly: true
+        - mountPath: /etc/velox/certs/client
+          name: medium-cdt-mgmt-client
+          readOnly: true
+        - mountPath: /etc/velox/certs/server
+          name: medium-cdt-mgmt-server
+          readOnly: true
+        - mountPath: /etc/velox/credentials/ui
+          name: medium-cdt-mgmt-ui-cred
+          readOnly: true
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        runAsNonRoot: true
+        supplementalGroups:
+        - 1000
+      serviceAccount: medium-cdt-mgmt-ui
+      serviceAccountName: medium-cdt-mgmt-ui
+      terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:
+      - labelSelector:
+          matchLabels:
+            app.kubernetes.io/component: management
+            app.kubernetes.io/instance: medium-cdt-mgmt
+            app.kubernetes.io/managed-by: ibm-apiconnect
+            app.kubernetes.io/name: ui
+            app.kubernetes.io/part-of: medium-cdt
+        maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+      volumes:
+      - name: medium-cdt-mgmt-ca
+        secret:
+          defaultMode: 420
+          secretName: medium-cdt-mgmt-ca
+      - name: medium-cdt-mgmt-client
+        secret:
+          defaultMode: 420
+          secretName: medium-cdt-mgmt-client
+      - name: medium-cdt-mgmt-server
+        secret:
+          defaultMode: 420
+          secretName: medium-cdt-mgmt-server
+      - name: medium-cdt-mgmt-ui-cred
+        secret:
+          defaultMode: 420
+          secretName: medium-cdt-mgmt-ui-cred
+      - configMap:
+          defaultMode: 420
+          name: medium-cdt-mgmt-ui-nginx-fixed
+        name: nginx-fixed
+status:
+  availableReplicas: 1
+  conditions:
+  - lastTransitionTime: "2026-02-12T08:44:22Z"
+    lastUpdateTime: "2026-02-12T08:44:22Z"
+    message: Deployment has minimum availability.
+    reason: MinimumReplicasAvailable
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2026-02-12T08:35:23Z"
+    lastUpdateTime: "2026-02-12T08:44:22Z"
+    message: ReplicaSet "medium-cdt-mgmt-ui-66cc46844f" has successfully progressed.
+    reason: NewReplicaSetAvailable
+    status: "True"
+    type: Progressing
+  observedGeneration: 2
+  readyReplicas: 1
+  replicas: 1
+  updatedReplicas: 1

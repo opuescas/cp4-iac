@@ -15,3 +15,10 @@ resource "kubernetes_namespace" "ibm_common_services" {
     }
   }
 }
+
+# 3. Namespace para DataPower Gateway
+resource "kubernetes_namespace" "cp4i_idg" {
+  metadata {
+    name = "cp4i-idg"
+  }
+}

@@ -1,0 +1,17 @@
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: dp-mgmt-svc
+  namespace: cp4i-idg
+spec:
+  selector:
+    statefulset.kubernetes.io/pod-name: cdt-dp-service-0
+  ports:
+    - name: web-mgmt
+      port: 9090
+      targetPort: 9090
+    - name: rest-mgmt
+      port: 5554
+      targetPort: 5554
+  type: ClusterIP```

@@ -1,0 +1,270 @@
+apiVersion: management.apiconnect.ibm.com/v1beta1
+kind: ManagementCluster
+metadata:
+  annotations:
+    apiconnect-operator/cp4i: "true"
+    apiconnect-operator/hash: 58ea6a81e5bd96fa29d2d5f235bfcb3687b1bafeca1084194fa69922a584878e
+  creationTimestamp: "2026-02-12T08:31:22Z"
+  generation: 7
+  labels:
+    backup.apiconnect.ibm.com/component: apiconnectcluster
+  name: medium-cdt-mgmt
+  namespace: cp4i
+  ownerReferences:
+  - apiVersion: apiconnect.ibm.com/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: APIConnectCluster
+    name: medium-cdt
+    uid: 09cd6022-daed-4e62-a9ba-85b7a6286c3d
+  resourceVersion: "401283"
+  uid: c86b3d1f-fb88-4dfd-8b2e-a05023159b56
+spec:
+  adminUser:
+    secretName: medium-cdt-mgmt-admin-pass
+  aiDataService:
+    dataServiceEndpoint: {}
+  analytics:
+    client: {}
+    ingestion:
+      secretName: medium-cdt-a7s-ing-client
+  apiManagerEndpoint:
+    annotations:
+      cert-manager.io/issuer: medium-cdt-ingress-issuer
+      haproxy.router.openshift.io/timeout: 240s
+    hosts:
+    - name: medium-cdt-mgmt-api-manager-cp4i.apps.698d333990f9e0c297a43c2e.am1.techzone.ibm.com
+      secretName: medium-cdt-mgmt-api-manager
+  certManagerIssuer:
+    kind: Issuer
+    name: medium-cdt-self-signed
+  cloudManagerEndpoint:
+    annotations:
+      cert-manager.io/issuer: medium-cdt-ingress-issuer
+      haproxy.router.openshift.io/timeout: 240s
+    hosts:
+    - name: medium-cdt-mgmt-admin-cp4i.apps.698d333990f9e0c297a43c2e.am1.techzone.ibm.com
+      secretName: medium-cdt-mgmt-admin
+  consumerAPIEndpoint:
+    annotations:
+      cert-manager.io/issuer: medium-cdt-ingress-issuer
+      haproxy.router.openshift.io/timeout: 240s
+    hosts:
+    - name: medium-cdt-mgmt-consumer-api-cp4i.apps.698d333990f9e0c297a43c2e.am1.techzone.ibm.com
+      secretName: medium-cdt-mgmt-consumer-api
+  consumerCatalogEndpoint:
+    annotations:
+      cert-manager.io/issuer: medium-cdt-ingress-issuer
+      haproxy.router.openshift.io/timeout: 240s
+    hosts:
+    - name: medium-cdt-mgmt-consumer-catalog-cp4i.apps.698d333990f9e0c297a43c2e.am1.techzone.ibm.com
+      secretName: medium-cdt-mgmt-consumer-catalog
+  databaseBackup:
+    protocol: local
+    repoRetentionFull: 14
+    schedule: 0 0 1 * * *
+  databaseVolumeClaimTemplate:
+    storageClassName: ocs-storagecluster-ceph-rbd
+  dbArchiveVolumeClaimTemplate:
+    storageClassName: ocs-storagecluster-ceph-rbd
+  dbBackupVolumeClaimTemplate:
+    storageClassName: ocs-storagecluster-ceph-rbd
+    volumeSize: 120Gi
+  gateway:
+    client:
+      secretName: medium-cdt-gw-dr-client
+  governance: {}
+  imagePullSecrets:
+  - ibm-entitlement-key
+  imageRegistry: cp.icr.io/cp/apic
+  labels:
+    app.kubernetes.io/part-of: medium-cdt
+  license:
+    accept: true
+    license: L-PDZK-TWDH97
+    metric: VIRTUAL_PROCESSOR_CORE
+    use: nonproduction
+  messageQueueVolumeClaimTemplate:
+    storageClassName: ocs-storagecluster-ceph-rbd
+    volumeSize: 10Gi
+  microServiceSecurity: certManager
+  originalUID: c86b3d1f-fb88-4dfd-8b2e-a05023159b56
+  platformAPIEndpoint:
+    annotations:
+      cert-manager.io/issuer: medium-cdt-ingress-issuer
+      haproxy.router.openshift.io/timeout: 240s
+    hosts:
+    - name: medium-cdt-mgmt-platform-api-cp4i.apps.698d333990f9e0c297a43c2e.am1.techzone.ibm.com
+      secretName: medium-cdt-mgmt-platform-api
+  portal:
+    admin:
+      secretName: medium-cdt-ptl-adm-client
+  profile: n1xc4.m16
+  siteName: a14b3fd1
+  testAndMonitor:
+    hubEndpoint:
+      annotations:
+        cert-manager.io/issuer: medium-cdt-ingress-issuer
+    turnstileEndpoint:
+      annotations:
+        cert-manager.io/issuer: medium-cdt-ingress-issuer
+  version: 12.1.0.0
+status:
+  AICredentialSecret: medium-cdt-mgmt-ai-cred
+  AnalyticsCredentialSecret: medium-cdt-mgmt-analytics-cred
+  TransitionHelperCredentialSecret: medium-cdt-mgmt-th-cred
+  atmCredentialSecret: medium-cdt-mgmt-atm-cred
+  conditions:
+  - lastTransitionTime: "2026-02-12T08:31:23Z"
+    message: ""
+    reason: na
+    status: "False"
+    type: Warning
+  - lastTransitionTime: "2026-02-12T08:47:02Z"
+    message: ""
+    reason: na
+    status: "False"
+    type: Ready
+  - lastTransitionTime: "2026-02-12T08:44:28Z"
+    message: ""
+    reason: na
+    status: "False"
+    type: Pending
+  - lastTransitionTime: "2026-02-12T09:08:42Z"
+    message: 'System check completed with the following error: Node.js v24.4.1, see
+      status.SystemCheck for more details.'
+    reason: SystemCheckCompletedWithErrors
+    status: "True"
+    type: Error
+  - lastTransitionTime: "2026-02-12T08:31:23Z"
+    message: ""
+    reason: na
+    status: "False"
+    type: Failed
+  - lastTransitionTime: "2026-02-12T08:31:23Z"
+    message: ""
+    reason: na
+    status: "False"
+    type: Blocked
+  consumerToolkitCredentialSecret: medium-cdt-mgmt-ccli-cred
+  consumerUICredentialSecret: medium-cdt-mgmt-cui-cred
+  databaseCredentialsSecret: medium-cdt-mgmt-a14b3fd1-postgres-postgres-secret
+  dbClientSecrets:
+  - name: postgres
+    secretName: medium-cdt-mgmt-db-client-postgres
+  - name: apicuser
+    secretName: medium-cdt-mgmt-db-client-apicuser
+  dbReplicationSecret: medium-cdt-mgmt-a14b3fd1-db-replication
+  dbServerSecret: medium-cdt-mgmt-a14b3fd1-db-server
+  designerCredentialSecret: medium-cdt-mgmt-dsgr-cred
+  discoveryCredentialSecret: medium-cdt-mgmt-discovery-cred
+  encryptionSecret: medium-cdt-mgmt-enc-key
+  endpoints:
+  - name: apiManager
+    secretName: medium-cdt-mgmt-api-manager
+    type: UI
+    uri: https://medium-cdt-mgmt-api-manager-cp4i.apps.698d333990f9e0c297a43c2e.am1.techzone.ibm.com/manager
+  - name: admin
+    secretName: medium-cdt-mgmt-admin
+    type: UI
+    uri: https://medium-cdt-mgmt-admin-cp4i.apps.698d333990f9e0c297a43c2e.am1.techzone.ibm.com/admin
+  - name: consumerCatalog
+    secretName: medium-cdt-mgmt-consumer-catalog
+    type: UI
+    uri: https://medium-cdt-mgmt-consumer-catalog-cp4i.apps.698d333990f9e0c297a43c2e.am1.techzone.ibm.com/
+  - name: platformApi
+    secretName: medium-cdt-mgmt-platform-api
+    type: API
+    uri: https://medium-cdt-mgmt-platform-api-cp4i.apps.698d333990f9e0c297a43c2e.am1.techzone.ibm.com/
+  - name: jwksUrl
+    secretName: medium-cdt-mgmt-platform-api
+    type: API
+    uri: https://medium-cdt-mgmt-platform-api-cp4i.apps.698d333990f9e0c297a43c2e.am1.techzone.ibm.com/api/cloud/oauth2/certs
+  - name: consumerApi
+    secretName: medium-cdt-mgmt-consumer-api
+    type: API
+    uri: https://medium-cdt-mgmt-consumer-api-cp4i.apps.698d333990f9e0c297a43c2e.am1.techzone.ibm.com/
+  governanceCredentialSecret: medium-cdt-mgmt-governance-cred
+  haMode: standalone
+  juhuCredentialSecret: medium-cdt-mgmt-juhu-cred
+  lastUpgradeRecord: medium-cdt-mgmt-up-b8r62
+  message: Management is in Error state - see status condition for details
+  microServiceSecurity: certManager
+  natsTlsSecret: medium-cdt-mgmt-natscluster-mgmt
+  phase: Error
+  postgresDataStats:
+  - instanceName: medium-cdt-mgmt-a14b3fd1-db-1
+    podName: ""
+    pvcCapacity: 30720
+    pvcName: ""
+    pvcType: WAL
+    pvcUsed: 48
+    pvcUsedPercentage: 1
+  - instanceName: medium-cdt-mgmt-a14b3fd1-db-1
+    podName: ""
+    pvcCapacity: 122880
+    pvcName: ""
+    pvcType: PostgreSQL
+    pvcUsed: 51
+    pvcUsedPercentage: 1
+  s3proxyTlsSecret: medium-cdt-mgmt-s3proxy-all
+  serviceCASecret: medium-cdt-mgmt-ca
+  serviceClientSecret: medium-cdt-mgmt-client
+  serviceServerSecret: medium-cdt-mgmt-server
+  services:
+    analytics-proxy: medium-cdt-mgmt-analytics-proxy
+    analytics-push: medium-cdt-mgmt-analytics-push
+    analytics-ui: medium-cdt-mgmt-analytics-ui
+    api-studio: medium-cdt-mgmt-api-studio
+    apim: medium-cdt-mgmt-apim
+    apim-data-populate: ""
+    apim-schema: ""
+    audit-logging: medium-cdt-mgmt-audit-logging
+    client-downloads-server: medium-cdt-mgmt-client-downloads-server
+    consumer-catalog: medium-cdt-mgmt-consumer-catalog
+    db: medium-cdt-mgmt-a14b3fd1-db-rw
+    edb-cluster: medium-cdt-mgmt-edb-cluster
+    juhu: medium-cdt-mgmt-juhu
+    ldap: medium-cdt-mgmt-ldap
+    lur: medium-cdt-mgmt-lur
+    lur-data-populate: ""
+    lur-schema: ""
+    natscluster: medium-cdt-mgmt-natscluster
+    portal-proxy: medium-cdt-mgmt-portal-proxy
+    s3proxy: medium-cdt-mgmt-s3proxy
+    system-check: medium-cdt-mgmt-system-check
+    taskmanager: medium-cdt-mgmt-taskmanager
+    ui: medium-cdt-mgmt-ui
+    websocket-proxy: medium-cdt-mgmt-websocket-proxy
+  state: 21/21
+  systemCheck:
+  - lastTransitionTime: "2026-02-12T09:08:40Z"
+    message: 'System check completed with the following error: Node.js v24.4.1. See
+      config map "medium-cdt-mgmt-system-check" for more details. The next job is
+      scheduled at "2026-02-12 10:05:00 +0000 UTC". Fix failing checks before the
+      next scheduled run to resolve the error.'
+    reason: SystemCheckCompletedWithErrors
+    status: "True"
+    type: Complete
+  toolkitCredentialSecret: medium-cdt-mgmt-cli-cred
+  uiCredentialSecret: medium-cdt-mgmt-ui-cred
+  versions:
+    available:
+      channels: []
+      versions:
+      - licenses:
+        - displayName: IBM API Connect Enterprise V12.1.0.0
+          link: https://ibm.biz/BdbJqM
+          matchesCurrentType: true
+          name: L-PDZK-TWDH97
+        - displayName: IBM webMethods API Management 12.1
+          link: https://ibm.biz/Bdb9vS
+          name: L-CXFF-XRSP3J
+        - displayName: IBM Cloud Pak for Integration - API Calls 16.1.2
+          link: https://ibm.biz/BdnM2T
+          name: L-JVUW-LSTB9R
+        - displayName: IBM webMethods Hybrid Integration Subscription 11.2
+          link: https://ibm.biz/BdnaFK
+          name: L-SBZZ-CNR329
+        name: 12.1.0.0-1110
+    reconciled: 12.1.0.0-1110

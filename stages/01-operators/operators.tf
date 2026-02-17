@@ -41,6 +41,7 @@ resource "kubernetes_manifest" "cp4i_operator" {
 # 3. Operador IBM App Connect (v12.19)
 # ----------------------------------------------------------------
 resource "kubernetes_manifest" "app_connect_operator" {
+  depends_on = [kubernetes_manifest.ibm_operator_catalog]
   manifest = {
     apiVersion = "operators.coreos.com/v1alpha1"
     kind       = "Subscription"
@@ -62,6 +63,7 @@ resource "kubernetes_manifest" "app_connect_operator" {
 # 4. Operador IBM MQ (v3.8)
 # ----------------------------------------------------------------
 resource "kubernetes_manifest" "mq_operator" {
+  depends_on = [kubernetes_manifest.ibm_operator_catalog]
   manifest = {
     apiVersion = "operators.coreos.com/v1alpha1"
     kind       = "Subscription"
@@ -83,6 +85,7 @@ resource "kubernetes_manifest" "mq_operator" {
 # 5. Operador IBM API Connect (v7.0)
 # ----------------------------------------------------------------
 resource "kubernetes_manifest" "api_connect_operator" {
+  depends_on = [kubernetes_manifest.ibm_operator_catalog]
   manifest = {
     apiVersion = "operators.coreos.com/v1alpha1"
     kind       = "Subscription"
@@ -102,6 +105,7 @@ resource "kubernetes_manifest" "api_connect_operator" {
 
 # 6. Operador IBM DataPower Gateway
 resource "kubernetes_manifest" "datapower_operator" {
+  depends_on = [kubernetes_manifest.ibm_operator_catalog]
   manifest = {
     apiVersion = "operators.coreos.com/v1alpha1"
     kind       = "Subscription"

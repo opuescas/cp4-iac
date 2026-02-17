@@ -1,0 +1,25 @@
+```
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dp-web-mgmt
+  namespace: cp4i-idg
+data:
+  web.cfg: |
+    top; configure terminal;
+
+    web-mgmt
+      admin-state enabled
+      local-address 0.0.0.0 9090
+      ssl-config-type server
+      idle-timeout 600
+      no disable-csrf
+      enable-sts
+    exit
+
+    rest-mgmt
+      admin-state enabled
+      local-address 0.0.0.0 5554
+    exit
+
+    write memory```
