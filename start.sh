@@ -206,10 +206,20 @@ sync_existing_resources() {
     safe_import "kubernetes_config_map.mqwebuserconfigmap" "cp4i/mqwebuserconfigmap" "ConfigMap MQ Web"
     safe_import "kubernetes_manifest.qm1_cdt" "apiVersion=mq.ibm.com/v1beta1,kind=QueueManager,namespace=cp4i,name=qm1-cdt" "QueueManager QM1"
     
-    local APIC_VER=$(oc get apiconnectcluster medium-cdt -n cp4i -o jsonpath='{.spec.version}' 2>/dev/null)
-    if [[ "$APIC_VER" == "12.1.0.0" ]]; then
-        safe_import "kubernetes_manifest.apic_cluster" "apiVersion=apiconnect.ibm.com/v1beta1,kind=APIConnectCluster,namespace=cp4i,name=medium-cdt" "Instancia API Connect"
+    local APIC_VER=$(oc get apiconnectcluster -n cp4i -o jsonpath='{.items[0].spec.version}' 2>/dev/null)
+    local APIC_NAME=$(oc get apiconnectcluster -n cp4i -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+    if [ ! -z "$APIC_NAME" ]; then
+        safe_import "kubernetes_manifest.apic_cluster" "apiVersion=apiconnect.ibm.com/v1beta1,kind=APIConnectCluster,namespace=cp4i,name=$APIC_NAME" "Instancia API Connect"
     fi
+
+    # Automatizados de DataPower
+    safe_import "kubernetes_manifest.gen_DP_configmap" "apiVersion=v1,kind=ConfigMap,namespace=cp4i-idg,name=dp-web-mgmt" "DataPower ConfigMap (Auto)"
+    safe_import "kubernetes_manifest.gen_DP_route" "apiVersion=route.openshift.io/v1,kind=Route,namespace=cp4i-idg,name=dp-webui" "DataPower Route (Auto)"
+    safe_import "kubernetes_manifest.gen_DP_service" "apiVersion=v1,kind=Service,namespace=cp4i-idg,name=dp-mgmt-svc" "DataPower Service (Auto)"
+    safe_import "kubernetes_manifest.gen_DP_cdt_dp_service" "apiVersion=datapower.ibm.com/v1beta3,kind=DataPowerService,namespace=cp4i-idg,name=cdt-dp-service" "DataPower Instance (Auto)"
+    
+    # Automatizado Dashboard
+    safe_import "kubernetes_manifest.gen_ACE_int_dashboard" "apiVersion=appconnect.ibm.com/v1beta1,kind=Dashboard,namespace=cp4i,name=dshb-cdt" "Dashboard AppConnect (Auto)"
 }
 
 post_install_booster() {
@@ -261,6 +271,7 @@ read -p "Opción [1-3]: " OPTION
 
 case $OPTION in
   1)
+    ./scripts/yaml_to_tf.sh
     pre_install_cleaner
     
     # --- ETAPA 1: OPERADORES ---

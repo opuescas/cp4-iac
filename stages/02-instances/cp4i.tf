@@ -26,37 +26,7 @@ resource "kubernetes_manifest" "platform_navigator" {
 }
 
 resource "kubernetes_manifest" "apic_cluster" {
-  manifest = {
-    apiVersion = "apiconnect.ibm.com/v1beta1"
-    kind       = "APIConnectCluster"
-    metadata = {
-      name      = "medium-cdt" # Cambiado a medium según tu YAML
-      namespace = "cp4i"
-      annotations = {
-        "apiconnect-operator/cp4i" = "true"
-      }
-      labels = {
-        "backup.apiconnect.ibm.com/component" = "apiconnectcluster"
-      }
-    }
-    spec = {
-      version = "12.1.0.0"       # Volvemos a la versión correcta
-      profile = "n1xc16.m72"     # Perfil Medium (1 replica) según tu YAML
-      license = {
-        accept  = true
-        license = "L-PDZK-TWDH97" # Tu licencia correcta para v12
-        metric  = "VIRTUAL_PROCESSOR_CORE"
-        use     = "nonproduction"
-      }
-      storageClassName = "ocs-storagecluster-ceph-rbd"
-      portal = {
-        mtlsValidateClient = true
-      }
-      analytics = {
-        mtlsValidateClient = true
-      }
-    }
-  }
+  manifest = yamldecode(file("${path.module}/../../yamls/APIC/cluster-medium.yaml"))
 }
 
 # 1. ConfigMap para seguridad web de MQ
@@ -159,6 +129,7 @@ resource "kubernetes_manifest" "cert_manager_cluster" {
 # ----------------------------------------------------------------
 # App Connect Dashboard (from yamls/int-dashboard.yaml)
 # ----------------------------------------------------------------
+/*
 resource "kubernetes_manifest" "app_connect_dashboard" {
   manifest = {
     apiVersion = "appconnect.ibm.com/v1beta1"
@@ -229,3 +200,4 @@ resource "kubernetes_manifest" "app_connect_dashboard" {
     }
   }
 }
+*/

@@ -1,4 +1,4 @@
-```
+
 kind: DataPowerService
 apiVersion: datapower.ibm.com/v1beta3
 metadata:
@@ -45,4 +45,4 @@ spec:
     - accessLevel: privileged
       name: admin
       passwordSecret: dp-admin-pass
-  version: 10.6-cd```
+  version: 10.6-cd
