@@ -23,6 +23,32 @@ if [ ! -z "$KUBECONFIG" ]; then
     echo -e "${YELLOW}ℹ️  Terraform usará esta configuración.${NC}"
 fi
 
+# --- VALIDACIÓN DE DEPENDENCIAS ---
+echo -e "${BLUE}🔍 Verificando dependencias...${NC}"
+
+# Validar Terraform
+if ! command -v terraform &> /dev/null; then
+    echo -e "${RED}❌ Error: Terraform no está instalado en el sistema.${NC}"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo -e "${YELLOW}👉 Para macOS usa: 'brew install terraform'${NC}"
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        echo -e "${YELLOW}👉 Para Linux usa: 'sudo apt-get install terraform' o equivalente.${NC}"
+    elif [[ "$OSTYPE" == "msys"* || "$OSTYPE" == "cygwin"* || "$OSTYPE" == "win32"* ]]; then
+        echo -e "${YELLOW}👉 Para Windows usa: 'choco install terraform' o descarga el exe de terraform.io${NC}"
+    else
+        echo -e "${YELLOW}👉 Visita: https://www.terraform.io/downloads${NC}"
+    fi
+    exit 1
+else
+    TF_VER=$(terraform version | head -n 1)
+    echo -e "${GREEN}✅ $TF_VER detectado.${NC}"
+fi
+
+# Validar OpenShift CLI (oc) - Opcional pero recomendado dado el uso extensivo
+if ! command -v oc &> /dev/null; then
+    echo -e "${YELLOW}⚠️  Advertencia: 'oc' (OpenShift CLI) no detectado. Algunos diagnósticos fallarán.${NC}"
+fi
+
 # --- UTILS ---
 log_header() {
     echo -e "\n\n================================================================================" >> "$LOG_FILE"
