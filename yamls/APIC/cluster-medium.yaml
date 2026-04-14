@@ -13,13 +13,13 @@ spec:
     storage:
       shared:
         volumeClaimTemplate:
-          storageClassName: ocs-storagecluster-ceph-rbd
+
       master:
         volumeClaimTemplate:
-          storageClassName: ocs-storagecluster-ceph-rbd
+
       backup:
         volumeClaimTemplate:
-          storageClassName: ocs-storagecluster-ceph-rbd
+
     analyticsMode: true
   license:
     accept: true
@@ -30,14 +30,14 @@ spec:
     mtlsValidateClient: true
   profile: n3xc16.m64
   version: 10.0.11.0
-  storageClassName: ocs-storagecluster-ceph-rbd
+
   management:
     discovery:
       tablespaceDbVolumeClaimTemplate:
-        storageClassName: ocs-storagecluster-ceph-rbd
+
     databaseVolumeClaimTemplate:
-      storageClassName: ocs-storagecluster-ceph-rbd
+
   gateway:
     tokenManagementService:
       storage:
-        storageClassName: ocs-storagecluster-ceph-rbd
+

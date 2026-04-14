@@ -188,7 +188,7 @@ sync_existing_resources() {
     log_header "SINCRONIZACIÓN"
     safe_import "kubernetes_namespace.cert_manager_ns" "cert-manager-operator" "NS Cert Manager"
     safe_import "kubernetes_manifest.cert_manager_sub" "apiVersion=operators.coreos.com/v1alpha1,kind=Subscription,namespace=cert-manager-operator,name=openshift-cert-manager-operator" "Operador Cert Manager"
-    safe_import "kubernetes_manifest.cert_manager_cluster" "apiVersion=operator.openshift.io/v1alpha1,kind=CertManager,name=cluster" "Instancia Cert Manager"
+
     
     safe_import "kubernetes_manifest.ibm_operator_catalog" "apiVersion=operators.coreos.com/v1alpha1,kind=CatalogSource,namespace=openshift-marketplace,name=ibm-operator-catalog" "Catálogo IBM"
     safe_import "kubernetes_namespace.cp4i" "cp4i" "NS cp4i"
@@ -291,7 +291,7 @@ case $OPTION in
     # --- ESPERA INTELIGENTE DE CRDS ---
     log_step "⏳ Esperando registro de CRDs..."
     # Lista de CRDs críticos que necesitamos antes de la Etapa 2
-    CRDS=("platformnavigators.integration.ibm.com" "apiconnectclusters.apiconnect.ibm.com" "queuemanagers.mq.ibm.com" "dashboards.appconnect.ibm.com" "datapowerservices.datapower.ibm.com")
+    CRDS=("platformnavigators.integration.ibm.com" "apiconnectclusters.apiconnect.ibm.com" "queuemanagers.mq.ibm.com" "dashboards.appconnect.ibm.com" "datapowerservices.datapower.ibm.com" "certmanagers.operator.openshift.io")
     
     for CRD in "${CRDS[@]}"; do
         echo -ne "${YELLOW}Busando CRD: $CRD...${NC}"

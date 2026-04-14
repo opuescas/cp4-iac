@@ -3,7 +3,7 @@ kind: Dashboard
 metadata:
   labels:
     backup.appconnect.ibm.com/component: dashboard
-  name: dshb-cdt
+  name: dshb-cdt2
   namespace: cp4i
 spec:
   api:
@@ -39,7 +39,7 @@ spec:
   storage:
     size: 5Gi
     type: persistent-claim
-    class: ocs-storagecluster-cephfs
+
   version: 13.0.6
   auditLog:
     disabled: true

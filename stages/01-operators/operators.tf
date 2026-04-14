@@ -142,9 +142,6 @@ resource "kubernetes_manifest" "cert_manager_og" {
       name      = "cert-manager-operator-group"
       namespace = "cert-manager-operator" # Actualizado
     }
-    spec = {
-      targetNamespaces = ["cert-manager-operator"] # Actualizado
-    }
   }
   depends_on = [kubernetes_namespace.cert_manager_ns]
 }
@@ -159,7 +156,7 @@ resource "kubernetes_manifest" "cert_manager_sub" {
       namespace = "cert-manager-operator"           # El namespace donde vive es el nuevo
     }
     spec = {
-      channel             = "stable-v1.14" 
+      channel             = "stable-v1" 
       installPlanApproval = "Automatic"
       name                = "openshift-cert-manager-operator"
       source              = "redhat-operators"

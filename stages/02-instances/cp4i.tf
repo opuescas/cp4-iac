@@ -110,21 +110,7 @@ resource "kubernetes_manifest" "qm1_cdt" {
   }
   depends_on = [kubernetes_config_map.mqwebuserconfigmap]
 }
-# ----------------------------------------------------------------
-# Cert Manager Instance (Moved from Stage 1)
-# ----------------------------------------------------------------
-resource "kubernetes_manifest" "cert_manager_cluster" {
-  manifest = {
-    apiVersion = "operator.openshift.io/v1alpha1"
-    kind       = "CertManager"
-    metadata = {
-      name = "cluster"
-    }
-    spec = {
-      managementState = "Managed"
-    }
-  }
-}
+
 
 # ----------------------------------------------------------------
 # App Connect Dashboard (from yamls/int-dashboard.yaml)
