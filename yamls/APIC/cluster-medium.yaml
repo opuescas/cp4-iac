@@ -5,22 +5,11 @@ metadata:
     apiconnect-operator/cp4i: 'true'
   labels:
     backup.apiconnect.ibm.com/component: apiconnectcluster
-  name: large-cdt-10011
+  name: large-cdt
   namespace: cp4i
 spec:
   analytics:
     mtlsValidateClient: true
-    storage:
-      shared:
-        volumeClaimTemplate:
-
-      master:
-        volumeClaimTemplate:
-
-      backup:
-        volumeClaimTemplate:
-
-    analyticsMode: true
   license:
     accept: true
     license: L-KYAL-S3RCBM
@@ -30,14 +19,4 @@ spec:
     mtlsValidateClient: true
   profile: n3xc16.m64
   version: 10.0.11.0
-
-  management:
-    discovery:
-      tablespaceDbVolumeClaimTemplate:
-
-    databaseVolumeClaimTemplate:
-
-  gateway:
-    tokenManagementService:
-      storage:
-
+  storageClassName: ocs-external-storagecluster-ceph-rbd
