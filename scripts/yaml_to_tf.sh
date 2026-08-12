@@ -57,43 +57,37 @@ find "$YAML_DIR" -name "*.yaml" -type f | while read -r yaml_file; do
     if [ $needs_update -eq 1 ]; then
         echo "🔄 Generando/Actualizando: $tf_file (desde $yaml_file)"
         
-        lifecycle_block=""
+        computed_block=""
         if grep -q "kind: Secret" "$yaml_file"; then
-            lifecycle_block=$(cat <<'EOF'
+            computed_block=$(cat <<'EOF'
 
-  lifecycle {
-    ignore_changes = [
-      object.data,
-      object.stringData,
-      object.metadata.annotations,
-      object.metadata.labels,
-    ]
-  }
+  computed_fields = [
+    "data",
+    "stringData",
+    "metadata.annotations",
+    "metadata.labels"
+  ]
 EOF
             )
         elif grep -q "kind: Configuration" "$yaml_file"; then
-            lifecycle_block=$(cat <<'EOF'
+            computed_block=$(cat <<'EOF'
 
-  lifecycle {
-    ignore_changes = [
-      object.spec.data,
-      object.metadata.annotations,
-      object.metadata.labels,
-    ]
-  }
+  computed_fields = [
+    "spec.data",
+    "metadata.annotations",
+    "metadata.labels"
+  ]
 EOF
             )
         elif grep -q "kind: DataPowerService" "$yaml_file"; then
-            lifecycle_block=$(cat <<'EOF'
+            computed_block=$(cat <<'EOF'
 
-  lifecycle {
-    ignore_changes = [
-      object.spec.livenessProbe,
-      object.spec.readinessProbe,
-      object.metadata.annotations,
-      object.metadata.labels,
-    ]
-  }
+  computed_fields = [
+    "spec.livenessProbe",
+    "spec.readinessProbe",
+    "metadata.annotations",
+    "metadata.labels"
+  ]
 EOF
             )
         fi
@@ -103,7 +97,7 @@ EOF
 # YAML-HASH: $current_hash
 resource "kubernetes_manifest" "gen_${cleaned_name}" {
   manifest = yamldecode(file("\${path.module}/../../$yaml_file"))
-${lifecycle_block}
+${computed_block}
 }
 EOF
     else
