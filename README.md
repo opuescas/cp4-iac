@@ -1,84 +1,163 @@
 # IBM Cloud Pak for Integration (CP4I) - Infraestructura como Código (IaC)
 
-Este proyecto proporciona la funcionalidad automatizada para desplegar entornos de IBM Cloud Pak for Integration (CP4I) en un clúster de Red Hat OpenShift utilizando Terraform.
-
-## Funcionalidad Principal
-
-- **Conversión de YAML a Terraform**: Utiliza el script `yaml_to_tf.sh` para convertir de forma automatizada las definiciones de recursos de Kubernetes (archivos YAML) en recursos manipulables desde Terraform.
-- **Despliegue en 2 Etapas**: 
-  - **Etapa 1 (`stages/01-operators`)**: Instalación de los Operadores necesarios (Cert Manager, Common Services, CP4I, MQ, AppConnect, API Connect, DataPower) y despliegue de los CRDs (Custom Resource Definitions).
-  - **Etapa 2 (`stages/02-instances`)**: Creación de las instancias de los componentes de CP4I (Platform Navigator, API Connect Cluster, Queue Manager, Dashboard, DataPower Service, etc.).
-- **Diagnóstico y Auto-Corrección (Hotfixes)**: El script general de orquestación (`start.sh`) cuenta con funciones integradas para:
-  - Destrabar pods bloqueados del operador de API Connect forzando su reconciliación.
-  - Aplicar un parcheo de sintaxis en el archivo de configuración interno NGINX de la UI (`mgmt-ui-nginx`).
-  - Auto-sincronizar e importar recursos que hayan sido creados previamente.
-- **Validación y Extracción de Credenciales**: Al finalizar el proceso, el proyecto valida el estado subyacente de cada tecnología y extrae de forma segura las credenciales iniciales para ingresar al Panel del Platform Navigator.
+Este proyecto proporciona un framework automatizado para desplegar entornos de IBM Cloud Pak for Integration (CP4I) y componentes asociados (como Sonatype Nexus) en clústeres de Red Hat OpenShift utilizando Terraform.
 
 ---
 
-## Orden de Ejecución para Levantar los Entornos
+## 🏗️ Arquitectura del Proyecto
 
-Existen dos alternativas para ejecutar el despliegue: utilizando el orquestador interactivo recomendado o aplicando las instrucciones de Terraform manualmente.
+El siguiente diagrama ilustra cómo se estructuran las definiciones de recursos, el proceso de automatización y su despliegue final en el clúster de OpenShift:
 
-### Prerrequisitos
-- Estar correctamente autenticado en el clúster de OpenShift (mediante `oc login ...`).
-- Tener la variable de entorno `$KUBECONFIG` configurada en tu sesión, o validada en el directorio local.
-- Software requerido: `terraform` (CLI), `oc` (OpenShift Client CLI) y bash (macOS / Linux).
+```mermaid
+graph TD
+    A[Definiciones de origen: yamls/] -->|YAMLs de Kubernetes| B[scripts/yaml_to_tf.sh]
+    B -->|Genera mapeo .tf| C[stages/02-instances/]
+    
+    subgraph Terraform Stages
+        D[stages/01-operators/] -->|Aplica| E[Operadores y CRDs]
+        C -->|Aplica| F[Instancias de CP4I y Nexus]
+    end
 
-### Opción 1: Despliegue Automatizado (Recomendado)
-
-El script `./start.sh` se encarga de manejar silenciosamente las fases, aplicar las importaciones sin que rompa el tfstate y corregir anomalías conocidas de los operadores.
-
-1. Abre tu terminal en la raíz de este proyecto.
-2. Brinda los permisos de ejecución en caso de no tenerlos (`chmod +x start.sh scripts/yaml_to_tf.sh`).
-3. Inicializa el script y selecciona la primera opción:
-   ```bash
-   ./start.sh
-   ```
-   > Selecciona: **1) APLICAR (Install + Auto-Unblock + Hotfix)**
-4. Observa el progreso. El script ejecutará automáticamente la conversión en bash, aplicará los manifiestos de la **Etapa 1**, hará una "espera inteligente" de los CRDs, y gatillará la **Etapa 2**. Posteriormente te revelará las credenciales.
-
-### Opción 2: Despliegue Manual desde Terraform
-
-Si prefieres obviar la automatización del menú e instanciar manualmente el código, sigue estricto este orden:
-
-1. **Generación de Archivos TF**:
-   Debes ejecutar obligatoriamente el convertidor en las carpetas de variables para transcribir el YAML al formato `.tf`.
-   ```bash
-   ./scripts/yaml_to_tf.sh
-   ```
-
-2. **Despliegue de Etapa 1 (Operadores)**:
-   ```bash
-   cd stages/01-operators
-   terraform init
-   terraform apply
-   # Escribe 'yes' cuando te lo solicite.
-   ```
-
-3. **Verificación Estricta de CRDs**:
-   No puedes avanzar sin que los CRDs clave sean aceptados por el clúster. Verifica que se listen de forma correcta:
-   ```bash
-   oc get crd platformnavigators.integration.ibm.com
-   oc get crd apiconnectclusters.apiconnect.ibm.com
-   oc get crd queuemanagers.mq.ibm.com
-   ```
-
-4. **Despliegue de Etapa 2 (Instancias)**:
-   A diferencia del `start.sh`, aquí deberás estar atento a que recursos ya creados en OpenShift pueden entrar en conflicto con el tfstate, requiriendo en su defecto utilizar `terraform import`:
-   ```bash
-   cd ../02-instances
-   terraform init
-   terraform apply
-   # Escribe 'yes' cuando te lo solicite.
-   ```
-
-5. **Post-Instalación**:
-   Recuerda asegurarte de actualizar o aceptar licencias usando `oc patch commonservice common-service` manual en caso quede pendiente.
+    subgraph Clúster OpenShift
+        E -->|Registra| G[CRDs: API Connect, MQ, AppConnect, DataPower]
+        F -->|Crea/Mapea| H[QueueManager, APIConnectCluster, Routes, Secrets]
+    end
+    
+    I[start.sh Orquestador] -->|Controla el flujo, ejecuta imports y aplica hotfixes| D
+    I -->|Controla el flujo| C
+```
 
 ---
 
-## Funciones Extra
+## 🎯 ¿Qué busca y qué logra este proyecto?
 
-- **Eliminación Total (Destroy)**: Si abres el `./start.sh`, la **Opción 2** está configurada para realizar un plan de destrucción general con `terraform destroy`, desinstalando de raíz ambas fases (instancias y luego operadores).
-- **Recuperación de Panel**: Ante una pérdida de acceso, puedes recurrir al `./start.sh` con la **Opción 3**, que realizará la tarea única de re-escanear las rutas (Routes) de OpenShift y extraer la Password provista en los secrets, listándola amigablemente por pantalla.
+### Objetivos (Qué busca)
+1. **Despliegues 100% Repetibles**: Evitar la configuración manual a través de la consola web de OpenShift.
+2. **Abstracción de Recursos**: Permitir a los desarrolladores y administradores definir recursos en YAML estándar y mapearlos automáticamente a Terraform mediante un script transpilador (`yaml_to_tf.sh`).
+3. **Resolución Automatizada de Errores Comunes**: Evitar que el despliegue falle o se detenga debido a bugs conocidos de los operadores de IBM (como bloqueos de reconciliación o fallos de sintaxis en plantillas).
+
+### Resultados (Qué logra)
+* **Instalación sin Fricción**: Despliegue secuencial de operadores e instancias con un solo comando.
+* **Auto-sincronización de Recursos Existentes**: Ejecución de importaciones de estado inteligente (`terraform import`) para recursos que ya existían previamente en el clúster, evitando errores de duplicidad.
+* **Hotfixes Integrados**: Detección y corrección en caliente de fallas de configuración.
+* **Reporte de Credenciales**: Extracción automática de la URL de administración del Platform Navigator y las contraseñas temporales iniciales creadas por OLM.
+
+---
+
+## 🔄 Flujo de Ejecución y Orden de Despliegue
+
+El despliegue está dividido en fases lógicas para cumplir con las dependencias de los recursos personalizados (Custom Resources) en Kubernetes:
+
+```mermaid
+sequenceDiagram
+    participant U as Orquestador (start.sh)
+    participant O as Etapa 1: Operadores
+    participant C as Clúster (CRDs)
+    participant I as Etapa 2: Instancias
+    participant H as Diagnóstico y Hotfixes
+
+    U->>U: Ejecuta scripts/yaml_to_tf.sh (Conversión de YAML a TF)
+    U->>O: terraform apply (Fase de Operadores)
+    O->>C: Crea Namespaces, CatalogSources y Subscriptions
+    loop Espera inteligente de CRDs
+        U->>C: Consulta oc get crd <componente>
+    end
+    U->>I: Sincronización inteligente (safe_import/terraform import)
+    I->>C: Mapea recursos existentes para evitar conflictos de estado
+    U->>I: terraform apply (Fase de Instancias y Nexus)
+    I->>C: Despliega PlatformNavigator, APIConnect, MQ, Nexus Route/Secret
+    U->>H: Aplica Hotfixes (APIC restart, Nginx Semicolon Fix)
+    U->>C: Extrae credenciales temporales de ibm-common-services
+    U->>U: Imprime URL de acceso en pantalla
+```
+
+---
+
+## 📁 Estructura del Directorio
+
+```
+iac-cp4i/
+├── yamls/                        # Manifiestos de Kubernetes originales (Fuente de Verdad)
+│   ├── ACE/                      # Integración AppConnect (Dashboards)
+│   ├── APIC/                     # Configuración del cluster de API Connect
+│   ├── DP/                       # Configuración y Route de DataPower
+│   └── NEXUS/                    # Configuración de Sonatype Nexus (Route, Secret, barauth)
+├── stages/                       # Código de Terraform organizado por fases
+│   ├── 01-operators/             # Terraform para namespaces, catálogos y operadores
+│   └── 02-instances/             # Terraform para las instancias del Pak y automatizados
+│       └── z_auto_*.tf           # Archivos generados dinámicamente
+├── scripts/
+│   └── yaml_to_tf.sh             # Transpilador de YAML a Kubernetes Manifest de Terraform
+├── start.sh                      # Script orquestador principal
+└── README.md                     # Esta documentación
+```
+
+---
+
+## ⚙️ Integración con Sonatype Nexus
+
+Para soportar el ciclo de vida de los paquetes de integración (`.bar`), se han integrado los recursos de Nexus bajo `yamls/NEXUS/`:
+
+1. **Route de Nexus (`route.yaml`)**:
+   Expone el servicio de Nexus en el namespace `openshift-operators` de manera dinámica.
+2. **Secret de Credenciales (`secret.yaml`)**:
+   Crea el secreto `setdbparams` en el namespace `cp4i` con el usuario administrador y la contraseña del servicio:
+   * **Usuario**: `admin`
+   * **Password**: `yWQZw-yLSAm-63fnq-QLqRY`
+3. **Configuration barauth (`barauth.yaml`)**:
+   Crea una configuración del tipo `barauth` llamada `nexus-barauth` en el namespace `cp4i`, que almacena las credenciales en formato Base64 para que IBM AppConnect pueda autenticarse contra Nexus de forma segura al descargar los archivos `.bar`.
+
+---
+
+## 🛡️ Diagnósticos y Parches (Hotfixes)
+
+El script `./start.sh` aplica de manera automática dos parches necesarios para la estabilidad de la instalación:
+
+### A. Desbloqueo del Operador de API Connect (`unblock_stuck_operator`)
+En ocasiones, la instalación de API Connect se queda congelada al inicio esperando la creación de ConfigMaps. El script detecta esta condición y realiza un reinicio táctico del pod del operador `ibm-apiconnect` en el namespace `openshift-operators` para reactivar el ciclo de reconciliación.
+
+### B. Corrección NGINX UI (`apply_nginx_hotfix`)
+La versión 12.1.0 de API Connect tiene un error de sintaxis en el ConfigMap `mgmt-ui-nginx`, omitiendo un punto y coma (`;`) al final de una inyección de script:
+* **Línea errónea**: `window.apiConnectCfg = $api_connect_cfg</script>'`
+* **Línea corregida**: `window.apiConnectCfg = $api_connect_cfg</script>';`
+
+El script analiza el ConfigMap, aplica la corrección y reinicia el pod del componente `management-ui` automáticamente.
+
+---
+
+## 🔍 ¿Cómo verificar el estado de los componentes?
+
+Para validar manualmente que el entorno se ha desplegado correctamente, puedes utilizar los siguientes comandos:
+
+### 1. Estado de los Operadores y CRDs
+```bash
+# Listar operadores instalados en el namespace de operadores
+oc get csv -n openshift-operators
+
+# Validar que los CRDs clave están registrados
+oc get crd | grep -E "integration|apiconnect|mq|appconnect|datapower"
+```
+
+### 2. Estado de las Instancias del Cloud Pak
+```bash
+# Verificar Platform Navigator, API Connect, MQ y DataPower
+oc get platformnavigator,apiconnectcluster,dashboard,queuemanager,datapowerservice -n cp4i
+```
+
+### 3. Estado de los Recursos de Nexus
+```bash
+# Verificar la ruta expuesta para Nexus
+oc get route nexus -n openshift-operators
+
+# Verificar el secreto de credenciales
+oc get secret setdbparams -n cp4i -o yaml
+
+# Verificar la configuración de barauth
+oc get configuration nexus-barauth -n cp4i -o yaml
+```
+
+### 4. Credenciales de Acceso
+Para extraer manualmente la contraseña de administrador inicial en caso de pérdida:
+```bash
+oc extract secret/integration-admin-initial-temporary-credentials -n ibm-common-services --to=-
+```
