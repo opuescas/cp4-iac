@@ -150,6 +150,109 @@ apply_nginx_hotfix() {
     rm -f nginx_check.yaml
 }
 
+# --- OBTENER URLS DE TODOS LOS SERVICIOS ---
+get_all_services_urls() {
+    log_header "URLS DE SERVICIOS LEVANTADOS"
+    local NS="cp4i"
+    local OPS_NS="ibm-common-services"
+
+    echo -e "${CYAN}=== 1. PLATFORM UI (Platform Navigator) ===${NC}"
+    local NAV_NAME=$(oc get platformnavigator -n $NS -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+    local USER=""
+    local PASS=""
+    if [ ! -z "$NAV_NAME" ]; then
+        local READY=$(oc get platformnavigator $NAV_NAME -n $NS -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null)
+        local URL=$(oc get route -n $NS -l app.kubernetes.io/name=ibm-integration-platform-navigator -o jsonpath='{.items[0].spec.host}' 2>/dev/null)
+        if [ -z "$URL" ]; then URL=$(oc get route -n $NS -o jsonpath='{.items[?(@.ownerReferences[0].kind=="PlatformNavigator")].spec.host}' 2>/dev/null); fi
+        if [ -z "$URL" ]; then URL=$(oc get route -n $NS -l integration.ibm.com/kind=PlatformNavigator -o jsonpath='{.items[0].spec.host}' 2>/dev/null); fi
+        if [ -z "$URL" ]; then URL=$(oc get route -n $OPS_NS -l integration.ibm.com/kind=PlatformNavigator -o jsonpath='{.items[0].spec.host}' 2>/dev/null); fi
+        
+        local SECRET_NAME=$(oc get secret -n $OPS_NS -o name | grep "integration-admin-initial-temporary-credentials" | head -n 1)
+        if [ ! -z "$SECRET_NAME" ]; then
+            USER=$(oc extract $SECRET_NAME -n $OPS_NS --to=- --keys=username 2>/dev/null)
+            PASS=$(oc extract $SECRET_NAME -n $OPS_NS --to=- --keys=password 2>/dev/null)
+        fi
+
+        echo -e "🔗 URL:      https://$URL"
+        echo -e "👤 Usuario:  $USER"
+        echo -e "🔑 Password: $PASS"
+        echo -e "Estado:      $READY"
+    else
+        echo -e "⚠️  No se encontró ninguna instancia de PlatformNavigator."
+    fi
+    echo ""
+
+    echo -e "${CYAN}=== 2. APPCONNECT DASHBOARD ===${NC}"
+    local ACE_URL=$(oc get route -n $NS -l app.kubernetes.io/managed-by=ibm-appconnect-operator -o jsonpath='{.items[0].spec.host}' 2>/dev/null)
+    if [ -z "$ACE_URL" ]; then ACE_URL=$(oc get route db-02-production-ui -n $NS -o jsonpath='{.spec.host}' 2>/dev/null); fi
+    
+    if [ ! -z "$ACE_URL" ]; then
+        echo -e "🔗 URL:      https://$ACE_URL"
+        echo -e "👤 Usuario:  (Se rehusa el usuario de Platform UI: $USER)"
+        echo -e "🔑 Password: (Se rehusa el password de Platform UI: $PASS)"
+    else
+        echo -e "⚠️  No se encontró la ruta del Dashboard de AppConnect."
+    fi
+    echo ""
+
+    echo -e "${CYAN}=== 3. API CONNECT (APIC) ===${NC}"
+    local APIC_CM_URL=$(oc get route large-cdt-mgmt-admin -n $NS -o jsonpath='{.spec.host}' 2>/dev/null)
+    local APIC_M_URL=$(oc get route large-cdt-mgmt-api-manager -n $NS -o jsonpath='{.spec.host}' 2>/dev/null)
+    local APIC_PORTAL_URL=$(oc get route -n $NS | grep -E "portal-web|portal-developer" | awk '{print $2}' | head -n 1)
+    
+    local APIC_ADMIN_SECRET="large-cdt-mgmt-admin-pass"
+    local APIC_USER=""
+    local APIC_PASS=""
+    if oc get secret $APIC_ADMIN_SECRET -n $NS >/dev/null 2>&1; then
+        APIC_USER=$(oc extract secret/$APIC_ADMIN_SECRET -n $NS --to=- --keys=email 2>/dev/null)
+        APIC_PASS=$(oc extract secret/$APIC_ADMIN_SECRET -n $NS --to=- --keys=password 2>/dev/null)
+    fi
+
+    if [ ! -z "$APIC_CM_URL" ] || [ ! -z "$APIC_M_URL" ]; then
+        if [ ! -z "$APIC_CM_URL" ]; then echo -e "🔗 Cloud Manager Console:  https://$APIC_CM_URL"; fi
+        if [ ! -z "$APIC_M_URL" ]; then  echo -e "🔗 API Manager Console:    https://$APIC_M_URL"; fi
+        if [ ! -z "$APIC_PORTAL_URL" ]; then echo -e "🔗 Developer Portal:       https://$APIC_PORTAL_URL"; fi
+        echo -e "👤 Usuario (Cloud Manager): $APIC_USER"
+        echo -e "🔑 Password:                $APIC_PASS"
+    else
+        echo -e "⚠️  No se encontraron las rutas de API Connect (APIC) o aún están configurándose."
+    fi
+    echo ""
+
+    echo -e "${CYAN}=== 4. IBM MQ CONSOLE ===${NC}"
+    local MQ_WEB_URL=$(oc get route qm1-cdt-ibm-mq-web -n $NS -o jsonpath='{.spec.host}' 2>/dev/null)
+    local MQ_USER=$(oc get configmap mqwebuserconfigmap -n $NS -o jsonpath='{.data.mqwebuser\.xml}' 2>/dev/null | grep -oE 'user name="[^"]+"' | cut -d'"' -f2)
+    local MQ_PASS=$(oc get configmap mqwebuserconfigmap -n $NS -o jsonpath='{.data.mqwebuser\.xml}' 2>/dev/null | grep -oE 'password="[^"]+"' | cut -d'"' -f2)
+    
+    if [ ! -z "$MQ_WEB_URL" ]; then
+        echo -e "🔗 Console URL: https://$MQ_WEB_URL"
+        echo -e "👤 Usuario:     $MQ_USER"
+        echo -e "🔑 Password:    $MQ_PASS"
+    else
+        echo -e "⚠️  No se encontró la ruta de IBM MQ Web Console."
+    fi
+    echo ""
+
+    echo -e "${CYAN}=== 5. KEYCLOAK (SSO) ===${NC}"
+    local KC_URL=$(oc get route keycloak -n $OPS_NS -o jsonpath='{.spec.host}' 2>/dev/null)
+    local KC_SECRET="cs-keycloak-initial-admin"
+    local KC_USER=""
+    local KC_PASS=""
+    if oc get secret $KC_SECRET -n $OPS_NS >/dev/null 2>&1; then
+        KC_USER=$(oc extract secret/$KC_SECRET -n $OPS_NS --to=- --keys=username 2>/dev/null)
+        KC_PASS=$(oc extract secret/$KC_SECRET -n $OPS_NS --to=- --keys=password 2>/dev/null)
+    fi
+
+    if [ ! -z "$KC_URL" ]; then
+        echo -e "🔗 Admin Console: https://$KC_URL"
+        echo -e "👤 Usuario:       $KC_USER"
+        echo -e "🔑 Password:      $KC_PASS"
+    else
+        echo -e "⚠️  No se encontró la ruta de Keycloak."
+    fi
+    echo ""
+}
+
 # --- VALIDACIÓN Y ACCESO ---
 validate_and_reveal_access() {
     log_header "VALIDACIÓN DE ESTADO Y ACCESO"
@@ -327,7 +430,8 @@ echo -e "${BLUE}=== GESTOR CP4I (POD FINDER FIX) ===${NC}"
 echo "1) APLICAR (Install + Auto-Unblock + Hotfix)"
 echo "2) DESINSTALAR TODO"
 echo "3) SOLO VALIDAR Y OBTENER ACCESO"
-read -p "Opción [1-3]: " OPTION
+echo "4) OBTENER URLS DE SERVICIOS LEVANTADOS"
+read -p "Opción [1-4]: " OPTION
 
 case $OPTION in
   1)
@@ -422,6 +526,7 @@ case $OPTION in
     fi
     ;;
   3) validate_and_reveal_access ;;
+  4) get_all_services_urls ;;
   *) log "Opción inválida." ;;
 esac
 log_header "FIN"
