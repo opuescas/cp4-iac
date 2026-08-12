@@ -2,4 +2,12 @@
 # YAML-HASH: 17efa0c56f8a0ba99daa6a09994527bb
 resource "kubernetes_manifest" "gen_NEXUS_barauth" {
   manifest = yamldecode(file("${path.module}/../../yamls/NEXUS/barauth.yaml"))
+
+  lifecycle {
+    ignore_changes = [
+      object.spec.data,
+      object.metadata.annotations,
+      object.metadata.labels,
+    ]
+  }
 }
