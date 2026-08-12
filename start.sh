@@ -306,7 +306,7 @@ case $OPTION in
     terraform init -no-color >> "$LOG_FILE" 2>&1
     
     log_step "Aplicando Operadores"
-    if terraform apply -auto-approve -no-color 2>&1 | filter_ansi | tee -a "$LOG_FILE"; then
+    if terraform apply -auto-approve -no-color 2>&1 | tee -a "$LOG_FILE"; then
         echo -e "${GREEN}✅ Operadores instalados.${NC}"
     else
         echo -e "${RED}❌ Fallo en Etapa 1. Revisa el log.${NC}"
@@ -335,10 +335,10 @@ case $OPTION in
     sync_existing_resources # Ojo: esto necesita ajuste de rutas si usa TF state local
     
     log_step "Generando Plan Final"
-    if terraform plan -no-color -out=tfplan 2>&1 | filter_ansi | tee -a "$LOG_FILE"; then
+    if terraform plan -no-color -out=tfplan 2>&1 | tee -a "$LOG_FILE"; then
         read -p "❓ ¿Aplicar cambios finales? (yes/no): " CONFIRM
         if [[ "$CONFIRM" == "yes" ]]; then
-            terraform apply -no-color "tfplan" 2>&1 | filter_ansi | tee -a "$LOG_FILE"
+            terraform apply -no-color "tfplan" 2>&1 | tee -a "$LOG_FILE"
             
             cd ../.. # Volver a raíz
 
@@ -367,7 +367,7 @@ case $OPTION in
     echo -e "${RED}⚠️  ESTA ACCIÓN BORRARÁ TODO.${NC}"
     read -p "Escribe 'DESTROY' para confirmar: " CONFIRM
     if [[ "$CONFIRM" == "DESTROY" ]]; then 
-        if terraform destroy -auto-approve -no-color 2>&1 | filter_ansi | tee -a "$LOG_FILE"; then
+        if terraform destroy -auto-approve -no-color 2>&1 | tee -a "$LOG_FILE"; then
             deep_clean_post_destroy
         else
             echo -e "${YELLOW}Terraform falló. Forzando limpieza manual...${NC}"
