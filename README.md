@@ -161,3 +161,21 @@ Para extraer manualmente la contraseña de administrador inicial en caso de pér
 ```bash
 oc extract secret/integration-admin-initial-temporary-credentials -n ibm-common-services --to=-
 ```
+
+---
+
+## 🛠️ Errores Frecuentes y Soluciones Automatizadas (Troubleshooting)
+
+Este proyecto cuenta con mecanismos integrados para resolver de forma automática fallos comunes de despliegue en entornos CP4I de IBM:
+
+### 1. Bloqueo de Aprobación Manual en OLM (Deadlock de Keycloak Operator)
+* **Problema**: El operador de Keycloak (`rhbk-operator`) se define en `ibm-common-services` con aprobación manual. Si el script espera a que la base de datos de Keycloak esté activa antes de terminar `terraform apply`, pero el plan de instalación manual solo se aprobaba después del apply, se produce un punto muerto (deadlock).
+* **Solución**: El orquestador `start.sh` inicia un daemon en segundo plano (`approve_installplans_daemon`) que monitorea y aprueba automáticamente cualquier `InstallPlan` pendiente en los namespaces `openshift-operators` e `ibm-common-services` durante todo el ciclo de ejecución.
+
+### 2. Error de Tipo Inconsistente en Terraform (`Provider produced inconsistent result`)
+* **Problema**: La API de Kubernetes o los webhooks de mutación de operadores (como AppConnect o DataPower) modifican propiedades o inyectan valores por defecto en caliente. Terraform detecta la diferencia entre el plan enviado y el estado retornado, abortando con un error de inconsistencia de schema en propiedades como `spec.data` (para Configurations) o `livenessProbe` (para DataPower).
+* **Solución**: El transpilador `yaml_to_tf.sh` analiza dinámicamente el tipo de recurso y le añade automáticamente un bloque `computed_fields` en la definición del `.tf` generado. Esto instruye a Terraform a aceptar el valor recalculado por el clúster como la fuente de verdad.
+
+### 3. Mutación en Caliente de Secrets (`stringData` Mismatch)
+* **Problema**: Declarar contraseñas bajo la propiedad `stringData` de los secrets causa inconsistencias en Terraform tras el primer apply, ya que Kubernetes las encripta y las mueve a la propiedad `data`, removiendo `stringData`.
+* **Solución**: Los archivos de configuración de origen bajo `yamls/NEXUS/secret.yaml` y `yamls/DP/admin-secret.yaml` se definen utilizando la propiedad `data` pre-codificada en Base64, evitando que ocurra dicha conversión.
