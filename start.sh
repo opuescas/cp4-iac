@@ -431,7 +431,8 @@ echo "1) APLICAR (Install + Auto-Unblock + Hotfix)"
 echo "2) DESINSTALAR TODO"
 echo "3) SOLO VALIDAR Y OBTENER ACCESO"
 echo "4) OBTENER URLS DE SERVICIOS LEVANTADOS"
-read -p "Opción [1-4]: " OPTION
+echo "5) INICIALIZAR API CONNECT (Crear Org + Usuario)"
+read -p "Opción [1-5]: " OPTION
 
 case $OPTION in
   1)
@@ -527,6 +528,13 @@ case $OPTION in
     ;;
   3) validate_and_reveal_access ;;
   4) get_all_services_urls ;;
+  5)
+    if [ ! -f "./scripts/apic_init.sh" ]; then
+        log_error "❌ scripts/apic_init.sh no encontrado."
+        exit 1
+    fi
+    bash ./scripts/apic_init.sh
+    ;;
   *) log "Opción inválida." ;;
 esac
 log_header "FIN"
