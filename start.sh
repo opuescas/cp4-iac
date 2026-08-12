@@ -185,7 +185,9 @@ validate_and_reveal_access() {
             if [ ! -z "$SECRET_NAME" ]; then
                 local PASS=$(oc extract $SECRET_NAME -n $OPS_NS --to=- --keys=password 2>/dev/null)
                 local USER=$(oc extract $SECRET_NAME -n $OPS_NS --to=- --keys=username 2>/dev/null)
-                local URL=$(oc get route -n $NS -l integration.ibm.com/kind=PlatformNavigator -o jsonpath='{.items[0].spec.host}' 2>/dev/null)
+                local URL=$(oc get route -n $NS -l app.kubernetes.io/name=ibm-integration-platform-navigator -o jsonpath='{.items[0].spec.host}' 2>/dev/null)
+                if [ -z "$URL" ]; then URL=$(oc get route -n $NS -o jsonpath='{.items[?(@.ownerReferences[0].kind=="PlatformNavigator")].spec.host}' 2>/dev/null); fi
+                if [ -z "$URL" ]; then URL=$(oc get route -n $NS -l integration.ibm.com/kind=PlatformNavigator -o jsonpath='{.items[0].spec.host}' 2>/dev/null); fi
                 if [ -z "$URL" ]; then URL=$(oc get route -n $OPS_NS -l integration.ibm.com/kind=PlatformNavigator -o jsonpath='{.items[0].spec.host}' 2>/dev/null); fi
                 
                 echo -e "\n${GREEN}======================================================${NC}"
