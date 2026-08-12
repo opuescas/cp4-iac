@@ -3,12 +3,10 @@
 resource "kubernetes_manifest" "gen_NEXUS_secret" {
   manifest = yamldecode(file("${path.module}/../../yamls/NEXUS/secret.yaml"))
 
-  lifecycle {
-    ignore_changes = [
-      object.data,
-      object.stringData,
-      object.metadata.annotations,
-      object.metadata.labels,
-    ]
-  }
+  computed_fields = [
+    "data",
+    "stringData",
+    "metadata.annotations",
+    "metadata.labels"
+  ]
 }

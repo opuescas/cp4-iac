@@ -3,12 +3,10 @@
 resource "kubernetes_manifest" "gen_DP_cdt_dp_service" {
   manifest = yamldecode(file("${path.module}/../../yamls/DP/cdt-dp-service.yaml"))
 
-  lifecycle {
-    ignore_changes = [
-      object.spec.livenessProbe,
-      object.spec.readinessProbe,
-      object.metadata.annotations,
-      object.metadata.labels,
-    ]
-  }
+  computed_fields = [
+    "spec.livenessProbe",
+    "spec.readinessProbe",
+    "metadata.annotations",
+    "metadata.labels"
+  ]
 }

@@ -3,11 +3,9 @@
 resource "kubernetes_manifest" "gen_NEXUS_barauth" {
   manifest = yamldecode(file("${path.module}/../../yamls/NEXUS/barauth.yaml"))
 
-  lifecycle {
-    ignore_changes = [
-      object.spec.data,
-      object.metadata.annotations,
-      object.metadata.labels,
-    ]
-  }
+  computed_fields = [
+    "spec.data",
+    "metadata.annotations",
+    "metadata.labels"
+  ]
 }

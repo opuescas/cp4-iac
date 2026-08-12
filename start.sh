@@ -302,6 +302,23 @@ deep_clean_post_destroy() {
     oc delete namespace cert-manager-operator --wait=false --ignore-not-found
 }
 
+approve_installplans_daemon() {
+    local parent_pid=$1
+    while kill -0 "$parent_pid" 2>/dev/null; do
+        for NAMESPACE in "openshift-operators" "ibm-common-services"; do
+            local IP_LIST=$(oc get installplan -n $NAMESPACE --no-headers 2>/dev/null | grep -v "Complete" | awk '{print $1}')
+            for IP in $IP_LIST; do
+                local APPROVED=$(oc get installplan $IP -n $NAMESPACE -o jsonpath='{.spec.approved}' 2>/dev/null)
+                if [ "$APPROVED" != "true" ]; then
+                    echo "$(date +"[%Y-%m-%d %H:%M:%S]") [Daemon Approval] Aprobando InstallPlan $IP en namespace $NAMESPACE..." >> "$LOG_FILE"
+                    oc patch installplan $IP -n $NAMESPACE --type merge -p '{"spec":{"approved":true}}' >> "$LOG_FILE" 2>&1 || true
+                fi
+            done
+        done
+        sleep 10
+    done
+}
+
 # --- MENÚ ---
 clear
 echo -e "${BLUE}=== GESTOR CP4I (POD FINDER FIX) ===${NC}"
@@ -312,6 +329,11 @@ read -p "Opción [1-3]: " OPTION
 
 case $OPTION in
   1)
+    # Iniciar daemon de auto-aprobación en segundo plano
+    approve_installplans_daemon $$ &
+    DAEMON_PID=$!
+    trap 'kill $DAEMON_PID 2>/dev/null || true' EXIT
+
     ./scripts/yaml_to_tf.sh
     pre_install_cleaner
     
