@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# Asegurar que las rutas comunes de binarios en macOS estén en el PATH
+export PATH="/opt/homebrew/bin:/usr/local/bin:/Users/ogpuescas/Downloads:$PATH"
+
+
 # Directorio de logs
 LOG_DIR="$(pwd)/logs"
 mkdir -p "$LOG_DIR"
@@ -338,22 +342,27 @@ case $OPTION in
     if terraform plan -no-color -out=tfplan 2>&1 | tee -a "$LOG_FILE"; then
         read -p "❓ ¿Aplicar cambios finales? (yes/no): " CONFIRM
         if [[ "$CONFIRM" == "yes" ]]; then
-            terraform apply -no-color "tfplan" 2>&1 | tee -a "$LOG_FILE"
-            
-            cd ../.. # Volver a raíz
+            if terraform apply -no-color "tfplan" 2>&1 | tee -a "$LOG_FILE"; then
+                echo -e "${GREEN}✅ Instancias aplicadas con éxito.${NC}"
+                cd ../.. # Volver a raíz
 
-            # Fixes post-install
-            if oc get commonservice common-service -n openshift-operators >/dev/null 2>&1; then
-                 ACC=$(oc get commonservice common-service -n openshift-operators -o jsonpath='{.spec.license.accept}')
-                 if [ "$ACC" != "true" ]; then
-                     oc patch commonservice common-service -n openshift-operators --type=merge -p '{"spec": {"license": {"accept": true}}}' >> "$LOG_FILE" 2>&1
-                 fi
+                # Fixes post-install
+                if oc get commonservice common-service -n openshift-operators >/dev/null 2>&1; then
+                     ACC=$(oc get commonservice common-service -n openshift-operators -o jsonpath='{.spec.license.accept}')
+                     if [ "$ACC" != "true" ]; then
+                         oc patch commonservice common-service -n openshift-operators --type=merge -p '{"spec": {"license": {"accept": true}}}' >> "$LOG_FILE" 2>&1
+                     fi
+                fi
+                
+                post_install_booster
+                unblock_stuck_operator
+                apply_nginx_hotfix
+                validate_and_reveal_access
+            else
+                cd ../.. # Volver a raíz
+                log "${RED}❌ Error: Falló la aplicación de instancias (terraform apply).${NC}"
+                exit 1
             fi
-            
-            post_install_booster
-            unblock_stuck_operator
-            apply_nginx_hotfix
-            validate_and_reveal_access
         else
             cd ../..
         fi
