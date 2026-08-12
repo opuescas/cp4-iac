@@ -254,6 +254,18 @@ sync_existing_resources() {
 
 post_install_booster() {
     log_step "🚀 Impulso Post-Instalación"
+    
+    # 1. Aprobar planes de instalación pendientes en openshift-operators e ibm-common-services
+    for NAMESPACE in "openshift-operators" "ibm-common-services"; do
+        log "Aprobando planes de instalación en $NAMESPACE..."
+        local IP_LIST=$(oc get installplan -n $NAMESPACE --no-headers 2>/dev/null | grep -v "Complete" | awk '{print $1}')
+        for IP in $IP_LIST; do
+            log "  → Aprobando InstallPlan $IP..."
+            oc patch installplan $IP -n $NAMESPACE --type merge -p '{"spec":{"approved":true}}' >> "$LOG_FILE" 2>&1 || true
+        done
+    done
+
+    # 2. Refrescar Catálogo si es necesario
     local NS="openshift-operators"
     local NEEDS_REFRESH=0
     for OP in "ibm-appconnect" "ibm-mq" "ibm-apiconnect"; do
@@ -264,7 +276,6 @@ post_install_booster() {
     done
     if [ $NEEDS_REFRESH -eq 1 ]; then
         oc delete pod -n openshift-marketplace -l olm.catalogSource=ibm-operator-catalog --wait=false
-        oc get installplan -n $NS --no-headers | grep -v "Complete" | awk '{print $1}' | xargs oc patch installplan -n $NS --type merge -p '{"spec":{"approved":true}}' 2>/dev/null
     fi
 }
 

@@ -134,11 +134,19 @@ resource "null_resource" "cleanup_keycloak_obsolete_authenticators" {
     command = <<EOT
       echo "=== [TF POST-APPLY] Iniciando validación y limpieza de base de datos de Keycloak ==="
       
-      # 1. Esperar a que el pod de base de datos esté listo
-      echo "Esperando a que PostgreSQL de Keycloak esté activo..."
+      # 1. Esperar a que el pod de base de datos esté listo (con un límite de 10 minutos)
+      echo "Esperando a que PostgreSQL de Keycloak esté activo (límite de 10 minutos)..."
+      COUNTER=0
+      MAX_WAIT=120  # 120 * 5s = 600s (10 minutos)
       until oc get pods -n ibm-common-services -l cluster-name=keycloak-edb-cluster | grep -q "1/1"; do 
+        if [ $COUNTER -ge $MAX_WAIT ]; then
+          echo "❌ ERROR: Tiempo de espera agotado esperando a que PostgreSQL de Keycloak esté activo."
+          exit 1
+        fi
         sleep 5
+        COUNTER=$((COUNTER + 1))
       done
+
 
       # 2. Extraer contraseña del secreto dinámicamente
       echo "Extrayendo credenciales de PostgreSQL..."
