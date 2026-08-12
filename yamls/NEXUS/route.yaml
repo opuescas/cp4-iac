@@ -1,0 +1,9 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: nexus
+  namespace: openshift-operators
+spec:
+  to:
+    kind: Service
+    name: example-nexusrepo-sonatype-nexus-service

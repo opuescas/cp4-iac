@@ -1,0 +1,9 @@
+apiVersion: appconnect.ibm.com/v1beta1
+kind: Configuration
+metadata:
+  name: nexus-barauth
+  namespace: cp4i
+spec:
+  type: barauth
+  data: >-
+    eyJhdXRoVHlwZSI6IkJBU0lDX0FVVEgiLCJjcmVkZW50aWFscyI6eyJ1c2VybmFtZSI6ImFkbWluIiwicGFzc3dvcmQiOiJ5V1Fady15TFNBbS02M2ZucS1RTHFSWSIsImluc2VjdXJlU3NsIjoidHJ1ZSJ9fQ==
