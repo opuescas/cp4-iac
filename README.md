@@ -179,3 +179,30 @@ Este proyecto cuenta con mecanismos integrados para resolver de forma automátic
 ### 3. Mutación en Caliente de Secrets (`stringData` Mismatch)
 * **Problema**: Declarar contraseñas bajo la propiedad `stringData` de los secrets causa inconsistencias en Terraform tras el primer apply, ya que Kubernetes las encripta y las mueve a la propiedad `data`, removiendo `stringData`.
 * **Solución**: Los archivos de configuración de origen bajo `yamls/NEXUS/secret.yaml` y `yamls/DP/admin-secret.yaml` se definen utilizando la propiedad `data` pre-codificada en Base64, evitando que ocurra dicha conversión.
+
+### 4. EDB PostgreSQL del Management de APIC Atascado en "Setting up primary"
+* **Síntoma**: El `ManagementCluster` permanece en `Pending 2/18`. Los logs del operador muestran: `Selected PVC is not ready yet - status: initializing` y `primary instance is fenced or still recovering`. Los pods `apim`, `lur`, `ldap`, etc. nunca se crean.
+* **Causa**: El recurso `Cluster` de EDB PostgreSQL del management de APIC (`large-cdt-mgmt-*-db`) entra en un estado de bloqueo donde el PVC está `Bound` pero el pod primario nunca arranca (mismo patrón que el EDB de Keycloak).
+* **Solución**:
+  ```bash
+  # Encontrar el nombre del cluster EDB
+  oc get clusters.postgresql.k8s.enterprisedb.io -n cp4i
+  # Eliminar para forzar recreación limpia (los PVCs se reutilizan)
+  oc delete clusters.postgresql.k8s.enterprisedb.io <nombre-del-cluster> -n cp4i
+  ```
+  El operador EDB recreará el cluster, ejecutará `initdb` en el PVC existente y el pod primario arrancará en ~30 segundos. Los 14 microservicios del management comenzarán a desplegarse automáticamente.
+
+### 5. Prerequisito Crítico: IBM Entitlement Key Faltante
+* **Síntoma**: `APIConnectCluster` en `Pending 0/6`. Solo los pods `s3proxy` corren. Los microservicios del management (`apim`, `lur`, `ldap`, etc.) nunca se crean. Warnings de `FailedToRetrieveImagePullSecret (ibm-entitlement-key)` en todos los pods.
+* **Causa**: El secreto `ibm-entitlement-key` para autenticarse en el IBM Container Registry (`cp.icr.io`) no está presente en los namespaces `cp4i`, `ibm-common-services` y `openshift-operators`. Sin este secreto, el operador de APIC no puede descargar las imágenes de los microservicios.
+* **Solución automática desde Terraform** (próximas ejecuciones): El key se configura en `stages/01-operators/terraform.tfvars` (no versionado) y es creado automáticamente por `stages/01-operators/entitlement.tf`.
+* **Solución manual urgente**:
+  ```bash
+  KEY="<tu-ibm-entitlement-key>"  # Obtenido de https://myibm.ibm.com/products-services/containerlibrary
+  for NS in cp4i ibm-common-services openshift-operators; do
+    oc create secret docker-registry ibm-entitlement-key \
+      --docker-server=cp.icr.io --docker-username=cp --docker-password="$KEY" -n "$NS"
+    oc secrets link default ibm-entitlement-key -n "$NS" --for=pull
+  done
+  oc rollout restart deployment/ibm-apiconnect -n openshift-operators
+  ```
