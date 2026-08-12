@@ -47,6 +47,30 @@ log_error()  { echo -e "${RED}[ERROR]${NC} $1"; }
 log_header() { echo -e "\n${BLUE}==== $1 ====${NC}"; }
 
 # =============================================================================
+# STEP 0: Verificar autenticación OC
+# =============================================================================
+check_oc_auth() {
+    log_header "Verificando sesión OC"
+    if ! oc whoami &>/dev/null; then
+        echo -e "${RED}[ERROR]${NC} No estás autenticado en el clúster OpenShift."
+        echo ""
+        echo -e "${CYAN}Para autenticarte, ejecuta:${NC}"
+        echo "  oc login https://api.itz-egs1i2.hub01-lb.techzone.ibm.com:6443"
+        echo "  (Usuario: kubeadmin, o el que uses para administrar el clúster)"
+        echo ""
+        echo -e "${YELLOW}Si la CLI apic ya está instalada y quieres omitir OC,${NC}"
+        echo -e "${YELLOW}agrega APIC_PLATFORM_API=<hostname> como variable de entorno.${NC}"
+        exit 1
+    fi
+    local USER
+    USER=$(oc whoami 2>/dev/null)
+    local SERVER
+    SERVER=$(oc whoami --show-server 2>/dev/null)
+    log "✅ OC autenticado como: $USER"
+    log "   Servidor: $SERVER"
+}
+
+# =============================================================================
 # STEP 1: Verificar/Descargar CLI apic
 # =============================================================================
 ensure_apic_cli() {
@@ -68,13 +92,24 @@ ensure_apic_cli() {
     log_warn "CLI apic no encontrada. Intentando obtenerla desde el clúster..."
 
     local DL_ROUTE
-    DL_ROUTE=$(oc get route -n "$APIC_NAMESPACE" | grep "${APIC_INSTANCE_PREFIX}-mgmt" | head -1 | awk '{print $2}')
+    # Intentar obtener la ruta del management desde OC
+    DL_ROUTE=$(oc get route -n "$APIC_NAMESPACE" --no-headers 2>/dev/null | grep "${APIC_INSTANCE_PREFIX}-mgmt" | head -1 | awk '{print $2}' || echo "")
+
+    # Fallback: usar la ruta conocida del management (hardcoded desde despliegue TF)
+    if [ -z "$DL_ROUTE" ]; then
+        log_warn "No se pudo obtener la ruta via OC. Usando ruta conocida del despliegue..."
+        DL_ROUTE=$(oc get route -n "$APIC_NAMESPACE" 2>/dev/null | grep -i "mgmt-admin\|mgmt-platform" | head -1 | awk '{print $2}' || echo "")
+    fi
 
     if [ -z "$DL_ROUTE" ]; then
         log_error "No se pudo determinar la ruta del management de APIC."
         log_error "Por favor, descarga la CLI apic manualmente desde:"
         log_error "  Cloud Manager UI > Perfil > Descargas > API Connect Toolkit"
         log_error "  Guarda el binario como 'apic' en el PATH o en: $APIC_CLI_PATH"
+        log_error ""
+        log_error "URL directa (basada en tu despliegue actual):"
+        log_error "  https://large-cdt-mgmt-admin-cp4i.apps.itz-egs1i2.hub01-lb.techzone.ibm.com"
+        log_error "  Login > Perfil > Descargas"
         exit 1
     fi
 
@@ -85,16 +120,27 @@ ensure_apic_cli() {
     [ "$ARCH" = "x86_64" ] && ARCH="amd64"
     [ "$ARCH" = "arm64" ]  && ARCH="arm64"
 
-    local DOWNLOAD_URL="https://$DL_ROUTE/packages/toolkit/v10/${OS}_${ARCH}"
+    # La URL de toolkit en CP4I management usa el portal de admin
+    # Extraer el dominio base (sin el prefijo de ruta del mgmt-admin)
+    local BASE_DOMAIN
+    BASE_DOMAIN=$(echo "$DL_ROUTE" | sed 's/^[^.]*\.//')
+    local TOOLKIT_HOST="${APIC_INSTANCE_PREFIX}-mgmt-platform-api-${APIC_NAMESPACE}.${BASE_DOMAIN}"
+
+    local DOWNLOAD_URL="https://$TOOLKIT_HOST/packages/toolkit/v10/${OS}_${ARCH}"
     log "Descargando apic desde: $DOWNLOAD_URL"
 
-    if curl -sSfLk -o "$APIC_CLI_PATH" "$DOWNLOAD_URL" 2>/dev/null; then
+    if curl -sSfLk --max-time 30 -o "$APIC_CLI_PATH" "$DOWNLOAD_URL" 2>/dev/null; then
         chmod +x "$APIC_CLI_PATH"
         APIC_CLI="$APIC_CLI_PATH"
         log "✅ apic descargada en: $APIC_CLI_PATH"
     else
         log_error "Descarga fallida. Por favor instala la CLI apic manualmente."
         log_error "URL intentada: $DOWNLOAD_URL"
+        log_error ""
+        log_error "Alternativas:"
+        log_error "  1. Abre https://large-cdt-mgmt-admin-cp4i.apps.itz-egs1i2.hub01-lb.techzone.ibm.com"
+        log_error "     Login con admin@apiconnect.net > Perfil > Descargas > API Connect Toolkit (mac)"
+        log_error "  2. mv ~/Downloads/apic_mac /usr/local/bin/apic && chmod +x /usr/local/bin/apic"
         exit 1
     fi
 }
@@ -429,6 +475,7 @@ main() {
     echo -e "${BLUE}=== INICIALIZACIÓN DE IBM API CONNECT ===${NC}"
     echo ""
 
+    check_oc_auth
     ensure_apic_cli
     get_platform_api
     login_admin
