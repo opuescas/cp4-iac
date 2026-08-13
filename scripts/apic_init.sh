@@ -177,24 +177,40 @@ get_platform_api() {
 login_admin() {
     log_header "Login en Cloud Manager (scope admin)"
 
-    local ADMIN_USER
+    local ADMIN_USER="admin"
     local ADMIN_PASS
-    ADMIN_USER=$(oc extract secret/"$APIC_MGMT_SECRET" -n "$APIC_NAMESPACE" --to=- --keys=email 2>/dev/null || echo "admin@apiconnect.net")
-    ADMIN_PASS=$(oc extract secret/"$APIC_MGMT_SECRET" -n "$APIC_NAMESPACE" --to=- --keys=password 2>/dev/null)
+    ADMIN_PASS=$(oc get secret "$APIC_MGMT_SECRET" -n "$APIC_NAMESPACE" -o jsonpath='{.data.password}' 2>/dev/null | python3 -m base64 -d)
 
     if [ -z "$ADMIN_PASS" ]; then
         log_error "No se pudo obtener la contraseña del secreto '$APIC_MGMT_SECRET'."
         exit 1
     fi
+    log "Usuario admin: $ADMIN_USER"
+
+    # Obtener client_id y secret del CLI client credentials
+    local CLI_CRED_SECRET="${APIC_INSTANCE_PREFIX}-mgmt-ccli-cred"
+    local CLI_CRED
+    CLI_CRED=$(oc extract secret/"$CLI_CRED_SECRET" -n "$APIC_NAMESPACE" --to=- 2>/dev/null)
+    local CLI_ID
+    CLI_ID=$(echo "$CLI_CRED" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('id',''))" 2>/dev/null || echo "")
+    local CLI_SEC
+    CLI_SEC=$(echo "$CLI_CRED" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('secret',''))" 2>/dev/null || echo "")
+
+    if [ -z "$CLI_ID" ]; then
+        log_warn "No se encontró $CLI_CRED_SECRET. Usando client credentials por defecto."
+        CLI_ID="caa87d9a-8cd7-4686-8b6e-ee2cdc5ee267"
+        CLI_SEC="3ecff363-cd74-4bde-9b54-72b9d4f764e0"
+    fi
 
     log "Detectando identity providers disponibles (scope admin)..."
+    # Usar la apic CLI para detectar IDPs - pasa el usuario/pass
     $APIC_CLI identity-providers:list \
         --scope admin \
         --server "$APIC_PLATFORM_API" \
         --output json 2>/dev/null > /tmp/apic_idp_admin.json || true
 
     local REALM="admin/default-idp-1"
-    if [ -f /tmp/apic_idp_admin.json ]; then
+    if [ -f /tmp/apic_idp_admin.json ] && [ -s /tmp/apic_idp_admin.json ]; then
         local DETECTED
         DETECTED=$(python3 -c "
 import json, sys
@@ -218,6 +234,7 @@ except:
 
     log "✅ Login en Cloud Manager exitoso."
 }
+
 
 # =============================================================================
 # STEP 4: Recopilar parámetros interactivamente si no están definidos
@@ -260,187 +277,167 @@ collect_org_params() {
     echo "   Owner Name:  $APIC_OWNER_FIRST $APIC_OWNER_LAST"
     echo ""
     read -rp "¿Confirmar y continuar? (yes/no): " CONFIRM
-    [ "$CONFIRM" != "yes" ] && { log_warn "Cancelado."; exit 0; }
+    if [ "$CONFIRM" != "yes" ]; then
+        log_warn "Cancelado."
+        exit 0
+    fi
 }
 
 # =============================================================================
 # STEP 5: Obtener token de sesión apic para llamadas REST directas
 # =============================================================================
 get_apic_token() {
+    local TOKEN_FILE="$HOME/.apiconnect/token"
     local CREDS_FILE="$HOME/.apiconnect/credentials.json"
-    if [ ! -f "$CREDS_FILE" ]; then
-        log_error "No se encontró $CREDS_FILE. Asegúrate de haber hecho login."
-        exit 1
-    fi
+    APIC_TOKEN=""
 
-    APIC_TOKEN=$(python3 -c "
-import json, sys
-data = json.load(open('$CREDS_FILE'))
-servers = data.get('cloud_settings', {}).get('servers', [])
-for s in servers:
-    if '$APIC_PLATFORM_API' in s.get('server', ''):
-        tok = s.get('access_token', '')
-        if tok:
-            print(tok)
+    if [ -f "$TOKEN_FILE" ]; then
+        log "Buscando token en $TOKEN_FILE..."
+        APIC_TOKEN=$(python3 -c "
+import re, sys
+try:
+    content = open('$TOKEN_FILE').read()
+    # Busca la sección correspondiente a $APIC_PLATFORM_API/api: |
+    # y luego extrae el access_token dentro de esa sección
+    pattern = re.escape('$APIC_PLATFORM_API') + r'/api:\s*\|\n(.*?)(?=\n\S|\Z)'
+    match = re.search(pattern, content, re.DOTALL)
+    if match:
+        token_match = re.search(r'access_token:\s*([^\s\n]+)', match.group(1))
+        if token_match:
+            print(token_match.group(1))
             sys.exit(0)
+    # Fallback: buscar cualquier access_token en el archivo
+    tokens = re.findall(r'access_token:\s*([^\s\n]+)', content)
+    if tokens:
+        print(tokens[0])
+        sys.exit(0)
+except Exception as e:
+    pass
 print('')
 " 2>/dev/null || echo "")
+    fi
+
+    if [ -z "$APIC_TOKEN" ] && [ -f "$CREDS_FILE" ]; then
+        log "Buscando token en $CREDS_FILE..."
+        APIC_TOKEN=$(python3 -c "
+import json, sys
+try:
+    data = json.load(open('$CREDS_FILE'))
+    servers = data.get('cloud_settings', {}).get('servers', [])
+    for s in servers:
+        if '$APIC_PLATFORM_API' in s.get('server', ''):
+            tok = s.get('access_token', '')
+            if tok:
+                print(tok)
+                sys.exit(0)
+except Exception as e:
+    pass
+print('')
+" 2>/dev/null || echo "")
+    fi
 
     if [ -z "$APIC_TOKEN" ]; then
-        log_error "No se pudo obtener el token de sesión de apic."
+        log_error "No se pudo obtener el token de sesión de apic desde ~/.apiconnect/token o ~/.apiconnect/credentials.json."
         exit 1
+    fi
+    log "✅ Token de sesión de APIC obtenido correctamente."
+}
+
+# =============================================================================
+# STEP 6: Crear usuario en API Manager Local User Registry
+# =============================================================================
+create_apim_user() {
+    log_header "Creando usuario en API Manager User Registry"
+
+    # Verificar si el usuario ya existe
+    local USER_GET_OUT
+    USER_GET_OUT=$($APIC_CLI users:get "$APIC_OWNER_USER" \
+        --server "$APIC_PLATFORM_API" \
+        --org admin \
+        --user-registry api-manager-lur 2>&1) || true
+
+    if [[ "$USER_GET_OUT" == *"https://"* ]]; then
+        USER_URL=$(echo "$USER_GET_OUT" | awk '{print $3}')
+        log "⚠️ El usuario '$APIC_OWNER_USER' ya existe en 'api-manager-lur'. Usando su URL existente: $USER_URL"
+    else
+        log "Creando usuario '$APIC_OWNER_USER'..."
+        cat > /tmp/apic_user.yaml <<EOF
+email: ${APIC_OWNER_EMAIL}
+first_name: ${APIC_OWNER_FIRST}
+last_name: ${APIC_OWNER_LAST}
+name: ${APIC_OWNER_USER}
+password: ${APIC_OWNER_PASS}
+username: ${APIC_OWNER_USER}
+EOF
+        local CREATE_RESP
+        CREATE_RESP=$($APIC_CLI users:create /tmp/apic_user.yaml \
+            --server "$APIC_PLATFORM_API" \
+            --org admin \
+            --user-registry api-manager-lur 2>&1)
+        USER_URL=$(echo "$CREATE_RESP" | awk '{print $3}')
+        if [ -z "$USER_URL" ]; then
+            log_error "❌ Error al crear el usuario. Respuesta:"
+            echo "$CREATE_RESP"
+            exit 1
+        fi
+        log "✅ Usuario '$APIC_OWNER_USER' creado. URL: $USER_URL"
     fi
 }
 
 # =============================================================================
-# STEP 6: Crear la Provider Organization
+# STEP 7: Crear la Provider Organization
 # =============================================================================
 create_provider_org() {
     log_header "Creando Provider Organization: $APIC_ORG_NAME"
 
     # Verificar si ya existe
-    local EXISTS
-    EXISTS=$($APIC_CLI orgs:get "$APIC_ORG_NAME" \
-        --server "$APIC_PLATFORM_API" \
-        --output json 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('name',''))" 2>/dev/null || echo "")
+    local EXISTS_OUT
+    EXISTS_OUT=$($APIC_CLI orgs:get "$APIC_ORG_NAME" \
+        --server "$APIC_PLATFORM_API" 2>&1) || true
 
-    if [ "$EXISTS" = "$APIC_ORG_NAME" ]; then
+    if [[ "$EXISTS_OUT" == *"https://"* ]]; then
         log_error "❌ La organización '$APIC_ORG_NAME' ya existe. Abortando."
         log_error "   Para eliminarla: apic orgs:delete $APIC_ORG_NAME --server $APIC_PLATFORM_API"
         exit 1
     fi
 
+    if [ -z "$USER_URL" ]; then
+        log_error "❌ URL del owner no disponible. No se puede crear la organización."
+        exit 1
+    fi
+
     cat > /tmp/apic_org.yaml <<EOF
 type: org
-api_version: v2
+api_version: 2.0.0
 name: ${APIC_ORG_NAME}
 title: ${APIC_ORG_TITLE}
 org_type: provider
+owner_url: ${USER_URL}
 EOF
 
     $APIC_CLI orgs:create /tmp/apic_org.yaml \
         --server "$APIC_PLATFORM_API"
 
-    log "✅ Provider Organization '$APIC_ORG_NAME' creada."
+    log "✅ Provider Organization '$APIC_ORG_NAME' creada con owner '$APIC_OWNER_USER'."
 }
 
 # =============================================================================
-# STEP 7: Crear usuario en API Manager Local User Registry via REST
-# =============================================================================
-create_apim_user() {
-    log_header "Creando usuario en API Manager User Registry"
-    get_apic_token
-
-    # Obtener URL del LUR de la org
-    log "Buscando user registries en la org '$APIC_ORG_NAME'..."
-    local REGISTRIES_RESP
-    REGISTRIES_RESP=$(curl -sSk \
-        -H "Accept: application/json" \
-        -H "Authorization: Bearer $APIC_TOKEN" \
-        "https://$APIC_PLATFORM_API/api/orgs/$APIC_ORG_NAME/user-registries" 2>/dev/null)
-
-    local LUR_BASE_URL
-    LUR_BASE_URL=$(echo "$REGISTRIES_RESP" | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-for r in d.get('results', []):
-    if r.get('registry_type') in ('local', 'lur') or r.get('name') in ('api-manager-lur', 'default-lur'):
-        print(r.get('url', '').rstrip('/'))
-        break
-" 2>/dev/null || echo "")
-
-    if [ -z "$LUR_BASE_URL" ]; then
-        LUR_BASE_URL="https://$APIC_PLATFORM_API/api/orgs/$APIC_ORG_NAME/user-registries/api-manager-lur"
-        log_warn "No se encontró LUR automáticamente. Usando URL por defecto: $LUR_BASE_URL"
-    fi
-
-    log "LUR URL: $LUR_BASE_URL"
-
-    # Verificar si el usuario ya existe
-    local USER_EXISTS
-    USER_EXISTS=$(curl -sSk \
-        -H "Authorization: Bearer $APIC_TOKEN" \
-        "$LUR_BASE_URL/users/$APIC_OWNER_USER" 2>/dev/null \
-        | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('username',''))" 2>/dev/null || echo "")
-
-    if [ "$USER_EXISTS" = "$APIC_OWNER_USER" ]; then
-        log_error "❌ El usuario '$APIC_OWNER_USER' ya existe. Abortando."
-        exit 1
-    fi
-
-    # Crear el usuario
-    log "Creando usuario '$APIC_OWNER_USER'..."
-    local CREATE_RESP
-    CREATE_RESP=$(curl -sSk -X POST \
-        -H "Content-Type: application/json" \
-        -H "Authorization: Bearer $APIC_TOKEN" \
-        -d "{
-            \"username\": \"$APIC_OWNER_USER\",
-            \"email\": \"$APIC_OWNER_EMAIL\",
-            \"first_name\": \"$APIC_OWNER_FIRST\",
-            \"last_name\": \"$APIC_OWNER_LAST\",
-            \"password\": \"$APIC_OWNER_PASS\"
-        }" \
-        "$LUR_BASE_URL/users" 2>/dev/null)
-
-    local CREATED_USER
-    CREATED_USER=$(echo "$CREATE_RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('username',''))" 2>/dev/null || echo "")
-
-    if [ -z "$CREATED_USER" ]; then
-        log_error "❌ Error al crear el usuario. Respuesta del servidor:"
-        echo "$CREATE_RESP" | python3 -m json.tool 2>/dev/null || echo "$CREATE_RESP"
-        exit 1
-    fi
-
-    # Guardar URL del usuario para el siguiente paso
-    USER_URL=$(echo "$CREATE_RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('url',''))" 2>/dev/null || echo "")
-    log "✅ Usuario '$APIC_OWNER_USER' creado. URL: $USER_URL"
-}
-
-# =============================================================================
-# STEP 8: Asignar usuario como member-administrator + transferir ownership
-# =============================================================================
-assign_org_owner() {
-    log_header "Asignando usuario como owner de la organización"
-
-    cat > /tmp/apic_member.yaml <<EOF
-type: member
-api_version: v2
-user:
-  url: "${USER_URL}"
-  registry_url: "${LUR_BASE_URL:-https://$APIC_PLATFORM_API/api/orgs/$APIC_ORG_NAME/user-registries/api-manager-lur}"
-  username: "${APIC_OWNER_USER}"
-role_urls:
-  - "https://$APIC_PLATFORM_API/api/orgs/$APIC_ORG_NAME/roles/administrator"
-EOF
-
-    $APIC_CLI members:create /tmp/apic_member.yaml \
-        --server "$APIC_PLATFORM_API" \
-        --org "$APIC_ORG_NAME" \
-        --scope org 2>/dev/null && log "✅ Usuario agregado como administrator." || log_warn "members:create requirió fallback."
-
-    # Transferir ownership si tenemos la URL del usuario
-    if [ -n "$USER_URL" ]; then
-        log "Transfiriendo ownership de la org al nuevo usuario..."
-        cat > /tmp/apic_transfer.yaml <<EOF
-new_owner_user_url: "${USER_URL}"
-EOF
-        $APIC_CLI orgs:transfer-owner "$APIC_ORG_NAME" \
-            --server "$APIC_PLATFORM_API" \
-            /tmp/apic_transfer.yaml 2>/dev/null \
-            && log "✅ Ownership transferido a '$APIC_OWNER_USER'." \
-            || log_warn "Transfer-owner falló o no disponible. El usuario permanece como administrator."
-    fi
-}
-
-# =============================================================================
-# STEP 9: Resumen y verificación
+# STEP 8: Resumen y verificación
 # =============================================================================
 verify_setup() {
-    log_header "Resumen Final"
+    log_header "Resumen Final y Verificación de Credenciales"
 
-    echo -e "${CYAN}--- Provider Organizations ---${NC}"
-    $APIC_CLI orgs:list --server "$APIC_PLATFORM_API" 2>/dev/null || true
+    # Log in as the new owner user to check if they can access their new organization
+    log "Probando inicio de sesión con el nuevo usuario..."
+    if $APIC_CLI login \
+        --server "$APIC_PLATFORM_API" \
+        --username "$APIC_OWNER_USER" \
+        --password "$APIC_OWNER_PASS" \
+        --realm "provider/default-idp-2" >/dev/null 2>&1; then
+        log "✅ Login verificado para '$APIC_OWNER_USER' (realm: provider/default-idp-2)."
+    else
+        log_warn "⚠️ No se pudo verificar el inicio de sesión del usuario '$APIC_OWNER_USER'."
+    fi
 
     echo ""
     echo -e "${CYAN}--- Miembros de '$APIC_ORG_NAME' ---${NC}"
@@ -464,8 +461,8 @@ verify_setup() {
     echo -e "  🔑 Password: $APIC_OWNER_PASS"
     echo ""
 
-    # Limpiar archivos temporales con datos sensibles
-    rm -f /tmp/apic_org.yaml /tmp/apic_member.yaml /tmp/apic_transfer.yaml /tmp/apic_idp_admin.json
+    # Limpiar archivos temporales
+    rm -f /tmp/apic_org.yaml /tmp/apic_user.yaml /tmp/apic_idp_admin.json
 }
 
 # =============================================================================
@@ -480,9 +477,8 @@ main() {
     get_platform_api
     login_admin
     collect_org_params
-    create_provider_org
     create_apim_user
-    assign_org_owner
+    create_provider_org
     verify_setup
 }
 
